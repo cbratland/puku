@@ -1,7 +1,27 @@
-[![Open in Codespaces](https://classroom.github.com/assets/launch-codespace-f4981d0f882b2a3f0472912d15f9806d57e124e0fc890972558857b51b24a6f9.svg)](https://classroom.github.com/open-in-codespaces?assignment_repo_id=10165060)
-# Individual Project
+# wasmlang (not yet named)
 
-This repository/assignment is a starting point for your semester-long, individual language implementation project.
-Over the course of the semester, we will introduce various milestones prompting you to add to your implementation.
-You should complete all of your work in this repository, using good `git` practices throughout development, _e.g._, commiting and pushing changes periodically.
-If you need help with using Git, check out this [Mini-course/repository on using Git and Github](https://github.com/csc312-grinnell/github-starter-course).
+## notes
+for now, this can be run with `cargo run -- add.wlang`, which will produce a wasm binary called `tmp.wasm` which will then be run with [wasmtime](https://github.com/bytecodealliance/wasmtime) automatically.
+
+a lot of the code is placeholder right now and very hacked together (a million `unwrap()`s) just so I could get something working
+
+## purpose
+an easy language with wasm support first. goal is to support the full wasm spec. ideally, something easy like javascript, but with types and compiles to wasm and is more performance oriented.
+maybe: exportable ast and efficient embeddable scripting support
+
+## grammar
+like rust/swift/kotlin.
+goals: rust, but
+- more readable
+- no double colons for namespaces
+- no semicolon expression separators
+- nice structs and enums and something like traits/protocols/interfaces
+- swift/kotlin's null coalescing operator instead of rust's (`?` operator)
+- optionals built in to the language like swift (like `Type?` instead of `Option<Type>` in rust)
+
+## extra language features
+- inferred type checking
+- const evaluation (for compile time expressions)
+- lifetime analysis (at least something basic)
+	- I want something like rust's Drop trait where I can have my own kind of memory mangement for when things go out of scope
+	- I don't want a garbage collector (the WasmGC proposal isn't finalized yet, and I wouldn't want to use it anyways, and languages like AssemblyScript that ship their own garbage collector in wasm are absolutely terrible)

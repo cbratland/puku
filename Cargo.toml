@@ -1,0 +1,9 @@
+[package]
+name = "wasmlang"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leb128 = "0.2.5"
+unicode-xid = "0.2.4"
+wasmer = "2.3.0"
