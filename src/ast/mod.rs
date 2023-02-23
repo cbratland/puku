@@ -12,12 +12,17 @@ pub struct Variable {
 
 #[derive(Debug)]
 pub enum LiteralKind {
-    Bool,
-    Char,
-    String,
-    Integer,
-    Float,
+    Bool(bool),
+    Char(char),
+    String(String),
+    Integer(i32),
+    Float(f32),
 }
+
+// #[derive(Debug)]
+// pub struct Literal {
+//     pub kind: LiteralKind,
+// }
 
 #[derive(Debug)]
 pub enum Expression {
@@ -36,6 +41,7 @@ pub enum Expression {
     // block
     Block(Block),
     // literal
+    Literal(LiteralKind),
     // variable
     Variable(Variable),
 }
@@ -79,7 +85,7 @@ pub struct FunctionCall {
     pub args: Vec<Expression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum BinaryOperator {
     Add,
     Sub,
@@ -91,6 +97,21 @@ pub enum BinaryOperator {
     GreaterOrEqual,
     Equal,
     NotEqual,
+    And,
+    Or,
+}
+
+impl BinaryOperator {
+    pub fn precedence(&self) -> u8 {
+        match self {
+            Self::Or => 1,
+            Self::And => 2,
+            Self::Equal | Self::NotEqual => 3,
+            Self::Less | Self::LessOrEqual | Self::Greater | Self::GreaterOrEqual => 4,
+            Self::Add | Self::Sub => 5,
+            Self::Mul | Self::Div => 6,
+        }
+    }
 }
 
 #[derive(Debug)]

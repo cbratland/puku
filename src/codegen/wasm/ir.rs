@@ -179,4 +179,6 @@ pub enum Opcode {
     F32Const = 0x43,
     F64Const = 0x44,
     I32Add = 0x6A,
+    I32Sub = 0x6B,
+    I32Mul = 0x6C,
 }

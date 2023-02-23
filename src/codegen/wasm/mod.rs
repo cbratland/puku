@@ -112,10 +112,23 @@ fn gen_expr_code<W: std::io::Write>(
                     BinaryOperator::Add => match op.r#type {
                         ast::Type::I32 => Opcode::I32Add,
                     },
+                    BinaryOperator::Sub => match op.r#type {
+                        ast::Type::I32 => Opcode::I32Sub,
+                    },
+                    BinaryOperator::Mul => match op.r#type {
+                        ast::Type::I32 => Opcode::I32Mul,
+                    },
                     _ => todo!(),
                 } as u8])
                 .unwrap();
         }
+        Expression::Literal(lit) => match lit {
+            ast::LiteralKind::Integer(int) => {
+                buffer.write_all(&[Opcode::I32Const as u8]).unwrap();
+                leb128::write::signed(buffer, *int as i64).unwrap();
+            }
+            _ => todo!(),
+        },
         _ => todo!(),
     }
 }

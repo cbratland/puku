@@ -150,8 +150,6 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
-        // It was tried making optimized version of this for eg. line comments, but
-        // LLVM can inline all of this and compile it down to fast iteration over bytes.
         while predicate(self.peek()) && !self.is_eof() {
             self.next();
         }
@@ -160,7 +158,6 @@ impl<'a> Lexer<'a> {
     fn is_whitespace(c: char) -> bool {
         matches!(
             c,
-            // Usual ASCII suspects
             '\u{0009}'   // \t
             | '\u{000A}' // \n
             | '\u{000B}' // vertical tab
@@ -228,11 +225,14 @@ impl<'a> Lexer<'a> {
                     _ => TokenKind::BinOp(BinOpToken::Minus),
                 },
                 '+' => TokenKind::BinOp(BinOpToken::Plus),
+                '*' => TokenKind::BinOp(BinOpToken::Star),
 
                 c if c == '_' || unicode_xid::UnicodeXID::is_xid_start(c) => {
                     self.eat_while(unicode_xid::UnicodeXID::is_xid_continue);
                     TokenKind::Identifier
                 }
+
+                c if c.is_numeric() => TokenKind::Literal,
 
                 _ => panic!("unknown token"),
             };
