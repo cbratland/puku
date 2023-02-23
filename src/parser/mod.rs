@@ -19,6 +19,8 @@
 
 #[allow(non_upper_case_globals)]
 pub mod keyword;
+
+#[cfg(test)]
 mod tests;
 
 use std::cmp::Ordering;

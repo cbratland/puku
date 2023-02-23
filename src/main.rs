@@ -30,6 +30,7 @@ fn main() {
 
     // pipeline
     let tokens = lexer::tokenize(&input_str);
+    println!("tokens: {:?}", tokens);
     let ast = parser::parse(&input_str, tokens).expect("parse error lol");
     // println!("ast: {:#?}", ast);
     let module = codegen::wasm::gen_ir(ast);

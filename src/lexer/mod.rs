@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::str::Chars;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -199,8 +202,8 @@ impl<'a> Lexer<'a> {
                         self.eat_while(|c| c != '\n');
                         kind
                     }
-                    // '*' => {}
-                    _ => panic!("unexpected"),
+                    // '*' => {} // TODO: block comments
+                    _ => TokenKind::BinOp(BinOpToken::Slash),
                 },
 
                 // whitespace
@@ -226,6 +229,45 @@ impl<'a> Lexer<'a> {
                 },
                 '+' => TokenKind::BinOp(BinOpToken::Plus),
                 '*' => TokenKind::BinOp(BinOpToken::Star),
+                '%' => TokenKind::BinOp(BinOpToken::Percent),
+                '^' => TokenKind::BinOp(BinOpToken::Caret),
+                '&' => match self.peek() {
+                    '|' => {
+                        self.next();
+                        TokenKind::AndAnd
+                    }
+                    _ => TokenKind::BinOp(BinOpToken::And),
+                },
+                '|' => match self.peek() {
+                    '|' => {
+                        self.next();
+                        TokenKind::PipePipe
+                    }
+                    _ => TokenKind::BinOp(BinOpToken::Pipe),
+                },
+
+                '<' => match self.peek() {
+                    '<' => {
+                        self.next();
+                        TokenKind::BinOp(BinOpToken::ShiftLeft)
+                    }
+                    '=' => {
+                        self.next();
+                        TokenKind::LThanEqual
+                    }
+                    _ => TokenKind::LThan,
+                },
+                '>' => match self.peek() {
+                    '>' => {
+                        self.next();
+                        TokenKind::BinOp(BinOpToken::ShiftRight)
+                    }
+                    '=' => {
+                        self.next();
+                        TokenKind::GThanEqual
+                    }
+                    _ => TokenKind::GThan,
+                },
 
                 c if c == '_' || unicode_xid::UnicodeXID::is_xid_start(c) => {
                     self.eat_while(unicode_xid::UnicodeXID::is_xid_continue);
@@ -258,7 +300,6 @@ pub fn tokenize<'a>(src: &'a str) -> Vec<Token> {
             break;
         }
     }
-    println!("tokens: {:?}", tokens);
     return tokens;
 
     // let mut tokens = vec![];
