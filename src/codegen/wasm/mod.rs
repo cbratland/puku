@@ -24,7 +24,7 @@ pub fn gen_ir<'a>(ast: ast::Ast) -> Module {
             params: function
                 .params
                 .iter()
-                .map(|e| type_to_wasm(&e.r#type))
+                .map(|e| type_to_wasm(&e.r#type.expect("function param has no type")))
                 .collect::<Vec<Valtype>>(),
             returns: if let Some(return_type) = function.return_type {
                 vec![type_to_wasm(&return_type)]
@@ -63,7 +63,11 @@ pub fn gen_ir<'a>(ast: ast::Ast) -> Module {
 
 fn type_to_wasm(ast_type: &ast::Type) -> Valtype {
     match ast_type {
-        ast::Type::I32 => Valtype::I32,
+        ast::Type::Basic(basic) => match basic {
+            ast::BasicType::Int32 => Valtype::I32,
+            _ => panic!("unknown basic type {:?}", basic),
+        },
+        _ => panic!("unknown type {:?}", ast_type),
     }
 }
 
@@ -107,16 +111,23 @@ fn gen_expr_code<W: std::io::Write>(
         Expression::BinOp(op) => {
             gen_expr_code(buffer, &op.left, locals);
             gen_expr_code(buffer, &op.right, locals);
+            let wasm_type = type_to_wasm(&op.r#type.expect("missing type"));
             buffer
                 .write_all(&[match op.operator {
-                    BinaryOperator::Add => match op.r#type {
-                        ast::Type::I32 => Opcode::I32Add,
+                    BinaryOperator::Add => match wasm_type {
+                        Valtype::I32 => Opcode::I32Add,
+                        // Valtype::I64 => Opcode::I64Add,
+                        // Valtype::F32 => Opcode::F32Add,
+                        // Valtype::F64 => Opcode::F64Add,
+                        _ => panic!("unknown type {:?}", op.r#type),
                     },
-                    BinaryOperator::Sub => match op.r#type {
-                        ast::Type::I32 => Opcode::I32Sub,
+                    BinaryOperator::Sub => match wasm_type {
+                        Valtype::I32 => Opcode::I32Sub,
+                        _ => panic!("unknown type {:?}", op.r#type),
                     },
-                    BinaryOperator::Mul => match op.r#type {
-                        ast::Type::I32 => Opcode::I32Mul,
+                    BinaryOperator::Mul => match wasm_type {
+                        Valtype::I32 => Opcode::I32Mul,
+                        _ => panic!("unknown type {:?}", op.r#type),
                     },
                     _ => todo!(),
                 } as u8])

@@ -207,24 +207,19 @@ impl<'a> Parser<'a> {
             self.next();
             params.push(Param {
                 name: param_name.to_string(),
-                // todo: better typechecking
-                r#type: match type_name {
-                    "i32" => Type::I32,
-                    _ => panic!("invalid param type"),
-                },
+                type_str: type_name.to_string(),
+                r#type: None,
             });
 
             _ = self.eat(&TokenKind::Comma);
         }
 
         // parse return type
-        let return_type = if self.eat(&TokenKind::Arrow) {
+        let return_type_str = if self.eat(&TokenKind::Arrow) {
             let rtype = self.token.identifier(self.src).ok_or(())?;
             self.next();
-            Some(match rtype {
-                "i32" => Type::I32,
-                _ => panic!("invalid ret type"),
-            })
+            // TODO: change
+            Some(rtype.to_string())
         } else {
             None
         };
@@ -240,7 +235,8 @@ impl<'a> Parser<'a> {
             attrs: FunctionAttributes { export },
             name: name.to_string(),
             params,
-            return_type,
+            return_type_str,
+            return_type: None,
             block,
         })
     }
@@ -284,6 +280,7 @@ impl<'a> Parser<'a> {
             self.next();
             let variable = Expression::Variable(Variable {
                 name: name.to_string(),
+                r#type: None,
             });
             Some(Box::new(variable))
         } else if self.check(&TokenKind::Literal) {
@@ -405,7 +402,7 @@ impl<'a> Parser<'a> {
                     left,
                     right,
                     operator,
-                    r#type: Type::I32, // todo: typechecking
+                    r#type: None,
                 })));
             }
             _ => panic!("need 2 exprs to reduce"),

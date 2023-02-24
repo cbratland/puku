@@ -1,13 +1,32 @@
-// todo: honestly not sure how to do types yet exactly
-// im gonna need both built in and user-defined
-#[derive(Debug, Clone, Copy)]
+pub mod symbols;
+
+pub use symbols::*;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BasicType {
+    Bool,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    UInt8,
+    UInt16,
+    UInt32,
+    UInt64,
+    Float32,
+    Float64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Type {
-    I32,
+    Unit,
+    Basic(BasicType),
 }
 
 #[derive(Debug)]
 pub struct Variable {
     pub name: String,
+    pub r#type: Option<Type>,
 }
 
 #[derive(Debug)]
@@ -49,7 +68,8 @@ pub enum Expression {
 #[derive(Debug)]
 pub struct Param {
     pub name: String,
-    pub r#type: Type,
+    pub type_str: String,
+    pub r#type: Option<Type>,
     // pub mutable: boolean?
 }
 
@@ -70,6 +90,7 @@ pub struct Function {
     pub attrs: FunctionAttributes,
     pub name: String, // todo: don't use String?
     pub params: Vec<Param>,
+    pub return_type_str: Option<String>,
     pub return_type: Option<Type>,
     pub block: Option<Block>,
 }
@@ -119,7 +140,7 @@ pub struct BinaryOperation {
     pub left: Expression,
     pub right: Expression,
     pub operator: BinaryOperator,
-    pub r#type: Type,
+    pub r#type: Option<Type>,
 }
 
 #[derive(Debug)]

@@ -9,6 +9,7 @@ mod codegen;
 #[allow(dead_code)]
 mod lexer;
 mod parser;
+mod typechecker;
 
 fn usage() -> ! {
     eprintln!("Usage: wasmlangc <file>");
@@ -31,7 +32,8 @@ fn main() {
     // pipeline
     let tokens = lexer::tokenize(&input_str);
     println!("tokens: {:?}", tokens);
-    let ast = parser::parse(&input_str, tokens).expect("parse error lol");
+    let mut ast = parser::parse(&input_str, tokens).expect("parse error lol");
+    typechecker::check(&mut ast);
     // println!("ast: {:#?}", ast);
     let module = codegen::wasm::gen_ir(ast);
 
