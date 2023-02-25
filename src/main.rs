@@ -3,6 +3,10 @@ use std::env;
 use std::io::{BufWriter, Read, Write};
 use std::process;
 
+use crate::parser::ParseError;
+
+extern crate bytecount;
+
 #[allow(dead_code)]
 mod ast;
 mod codegen;
@@ -23,8 +27,9 @@ fn main() {
     }
 
     // read input file
+    let file_name = args.last().unwrap();
     let mut input_str = String::new();
-    let mut input_file = std::fs::File::open(args.last().unwrap()).expect("no file found");
+    let mut input_file = std::fs::File::open(file_name).expect("no file found");
     input_file
         .read_to_string(&mut input_str)
         .expect("failed to read file");
@@ -32,7 +37,24 @@ fn main() {
     // pipeline
     let tokens = lexer::tokenize(&input_str);
     println!("tokens: {:?}", tokens);
-    let mut ast = parser::parse(&input_str, tokens).expect("parse error lol");
+    let mut ast = match parser::parse(&input_str, tokens) {
+        Ok(ast) => ast,
+        Err(err) => {
+            match err {
+                ParseError::Unhandled => println!("unhandled parser error!"),
+                ParseError::UnexpectedToken(span) => {
+                    let loc = span.loc as usize;
+                    let source_up_to = &input_str[..loc];
+                    let line =
+                        bytecount::count(source_up_to.as_bytes(), b'\n') + 1;
+                    let col = loc - source_up_to.rfind('\n').unwrap_or(0);
+                    let culprit = &input_str[loc..loc + span.len as usize];
+                    println!("{file_name}:{line}:{col}: unexpected token `{culprit}`");
+                }
+            }
+            return;
+        }
+    };
     typechecker::check(&mut ast);
     // println!("ast: {:#?}", ast);
     let module = codegen::wasm::gen_ir(ast);

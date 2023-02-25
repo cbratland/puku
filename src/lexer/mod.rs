@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use crate::ast::Span;
 use std::str::Chars;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,8 +72,7 @@ pub enum TokenKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub loc: u32,
-    pub len: u16,
+    pub span: Span,
 }
 
 impl Token {
@@ -90,8 +90,8 @@ impl Token {
     }
 
     pub fn as_str<'a>(&self, src: &'a str) -> &'a str {
-        let loc = self.loc as usize;
-        &src[loc..loc + self.len as usize]
+        let loc = self.span.loc as usize;
+        &src[loc..loc + self.span.len as usize]
     }
 
     pub fn identifier<'a>(&self, src: &'a str) -> Option<&'a str> {
@@ -101,13 +101,14 @@ impl Token {
             None
         }
     }
-
-    // pub fn identifier(&self) -> Option< {}
 }
 
 impl Token {
     pub fn new(kind: TokenKind, loc: u32, len: u16) -> Self {
-        Self { kind, loc, len }
+        Self {
+            kind,
+            span: Span { loc, len },
+        }
     }
 }
 

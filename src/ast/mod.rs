@@ -43,8 +43,40 @@ pub enum LiteralKind {
 //     pub kind: LiteralKind,
 // }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Span {
+    pub loc: u32,
+    pub len: u16,
+}
+
+impl Span {
+    // beginning of self to end of end
+    pub fn to(&self, end: &Span) -> Self {
+        Self {
+            loc: self.loc,
+            len: ((end.loc + end.len as u32) - self.loc) as u16,
+        }
+    }
+
+    // beginning of self to beginning of end
+    pub fn until(&self, end: &Span) -> Self {
+        Self {
+            loc: self.loc,
+            len: (end.loc - self.loc) as u16,
+        }
+    }
+
+    // end of self to beginning of end
+    pub fn between(&self, end: &Span) -> Self {
+        Self {
+            loc: self.loc + self.len as u32,
+            len: (end.loc - self.loc) as u16,
+        }
+    }
+}
+
 #[derive(Debug)]
-pub enum Expression {
+pub enum ExpressionKind {
     Return(Option<Box<Expression>>),
     // assign `x = a`
     Assign(Box<Expression>, Box<Expression>),
@@ -66,10 +98,64 @@ pub enum Expression {
 }
 
 #[derive(Debug)]
+pub struct Expression {
+    pub kind: ExpressionKind,
+    pub span: Span,
+}
+
+impl Expression {
+    pub fn ret(expr: Option<Expression>, span: Span) -> Self {
+        Self {
+            kind: ExpressionKind::Return(if let Some(expr) = expr {
+                Some(Box::new(expr))
+            } else {
+                None
+            }),
+            span,
+        }
+    }
+
+    pub fn binop(left: Expression, right: Expression, operator: BinaryOperator) -> Self {
+        let span = left.span.to(&right.span);
+        Self {
+            kind: ExpressionKind::BinOp(Box::new(BinaryOperation {
+                left,
+                right,
+                operator,
+                r#type: None,
+            })),
+            span,
+        }
+    }
+
+    pub fn var(name: String, span: Span) -> Self {
+        Self {
+            kind: ExpressionKind::Variable(Variable { name, r#type: None }),
+            span,
+        }
+    }
+
+    pub fn literal(kind: LiteralKind, span: Span) -> Self {
+        Self {
+            kind: ExpressionKind::Literal(kind),
+            span,
+        }
+    }
+
+    // pub fn block(block: Block) -> Self {
+    //     Self {
+    //         kind: ExpressionKind::Block(block),
+    //         span: block.span,
+    //     }
+    // }
+}
+
+#[derive(Debug)]
 pub struct Param {
     pub name: String,
     pub type_str: String,
     pub r#type: Option<Type>,
+    pub span: Span,
     // pub mutable: boolean?
 }
 
@@ -90,7 +176,7 @@ pub struct Function {
     pub attrs: FunctionAttributes,
     pub name: String, // todo: don't use String?
     pub params: Vec<Param>,
-    pub return_type_str: Option<String>,
+    pub return_type_str: Option<String>, // todo: this is bad -- do we want spans for types in source?
     pub return_type: Option<Type>,
     pub block: Option<Block>,
 }
@@ -98,6 +184,7 @@ pub struct Function {
 #[derive(Debug)]
 pub struct Block {
     pub expressions: Vec<Expression>,
+    pub span: Span,
 }
 
 #[derive(Debug)]
@@ -157,6 +244,7 @@ pub enum ItemKind {
 #[derive(Debug)]
 pub struct Item {
     pub kind: ItemKind,
+    pub span: Span,
 }
 
 #[derive(Debug)]

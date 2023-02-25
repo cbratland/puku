@@ -5,7 +5,7 @@ mod leb;
 
 pub use emit::emit;
 
-use crate::ast::{self, BinaryOperator, Expression, ItemKind};
+use crate::ast::{self, BinaryOperator, Expression, ExpressionKind, ItemKind};
 use ir::*;
 use std::collections::HashMap;
 
@@ -90,8 +90,8 @@ fn gen_expr_code<W: std::io::Write>(
     locals: &mut HashMap<String, u8>,
 ) {
     // todo: support more expressions
-    match expression {
-        Expression::Variable(var) => {
+    match &expression.kind {
+        ExpressionKind::Variable(var) => {
             let index = match locals.get(&var.name) {
                 Some(idx) => *idx,
                 None => {
@@ -102,13 +102,13 @@ fn gen_expr_code<W: std::io::Write>(
             };
             buffer.write_all(&[Opcode::LocalGet as u8, index]).unwrap();
         }
-        Expression::Return(expr) => {
+        ExpressionKind::Return(expr) => {
             if let Some(expr) = expr {
-                gen_expr_code(buffer, expr, locals);
+                gen_expr_code(buffer, &expr, locals);
                 buffer.write_all(&[Opcode::Return as u8]).unwrap();
             }
         }
-        Expression::BinOp(op) => {
+        ExpressionKind::BinOp(op) => {
             gen_expr_code(buffer, &op.left, locals);
             gen_expr_code(buffer, &op.right, locals);
             let wasm_type = type_to_wasm(&op.r#type.expect("missing type"));
@@ -133,7 +133,7 @@ fn gen_expr_code<W: std::io::Write>(
                 } as u8])
                 .unwrap();
         }
-        Expression::Literal(lit) => match lit {
+        ExpressionKind::Literal(lit) => match lit {
             ast::LiteralKind::Integer(int) => {
                 buffer.write_all(&[Opcode::I32Const as u8]).unwrap();
                 leb128::write::signed(buffer, *int as i64).unwrap();

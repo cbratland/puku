@@ -46,14 +46,14 @@ fn check_item(item: &mut Item, symbol_table: &mut SymbolTable) {
 }
 
 fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Type {
-    match expr {
-        Expression::Return(ret) => {
+    match &mut expr.kind {
+        ExpressionKind::Return(ret) => {
             if let Some(expr) = ret {
                 check_expr(expr, symbol_table);
             }
             Type::Unit
         }
-        Expression::BinOp(op) => {
+        ExpressionKind::BinOp(op) => {
             let left = check_expr(&mut op.left, symbol_table);
             let right = check_expr(&mut op.right, symbol_table);
             if left == right {
@@ -63,7 +63,7 @@ fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Type {
             }
             left
         }
-        Expression::Variable(var) => {
+        ExpressionKind::Variable(var) => {
             let var_type = symbol_table
                 .get(&var.name)
                 .expect("variable not defined")

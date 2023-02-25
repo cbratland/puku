@@ -31,7 +31,13 @@ use super::ast::*;
 // use std::collections::HashMap;
 use super::lexer::{Delimiter, Token, TokenKind};
 
-type Result<T> = std::result::Result<T, ()>;
+#[derive(Debug)]
+pub enum ParseError {
+    Unhandled,
+    UnexpectedToken(Span),
+}
+
+type Result<T> = std::result::Result<T, ParseError>;
 
 pub struct Parser<'a> {
     pub src: &'a str,
@@ -124,7 +130,7 @@ impl<'a> Parser<'a> {
         if self.eat(token) {
             Ok(())
         } else {
-            Err(())
+            Err(ParseError::Unhandled)
         }
     }
 }
@@ -132,10 +138,10 @@ impl<'a> Parser<'a> {
 // item parsing
 impl<'a> Parser<'a> {
     // parse all items in the token stream
-    pub fn parse_items(&mut self) -> Vec<Box<Item>> {
+    pub fn parse_items(&mut self) -> Result<Vec<Box<Item>>> {
         let mut items = vec![];
 
-        while let Some(item) = self.parse_item() {
+        while let Some(item) = self.parse_item()? {
             items.push(item);
         }
 
@@ -143,31 +149,36 @@ impl<'a> Parser<'a> {
             panic!("expected eof")
         }
 
-        items
+        Ok(items)
     }
 
     // parse an item
-    pub fn parse_item(&mut self) -> Option<Box<Item>> {
+    pub fn parse_item(&mut self) -> Result<Option<Box<Item>>> {
         // skip comments
+        // todo: comments need to be skipped everywhere
         while self.check(&TokenKind::LineComment) {
-            self.next()
+            self.next();
         }
         // check item kind
-        if let Some(kind) = self.parse_item_kind() {
-            Some(Box::new(Item { kind }))
+        let start = self.token.span;
+        if let Some(kind) = self.parse_item_kind()? {
+            Ok(Some(Box::new(Item {
+                kind,
+                span: start.until(&self.token.span),
+            })))
         } else {
-            None
+            Ok(None)
         }
     }
 
     // check for item kind
-    fn parse_item_kind(&mut self) -> Option<ItemKind> {
+    fn parse_item_kind(&mut self) -> Result<Option<ItemKind>> {
         if self.check_func() {
-            let func = self.parse_func().ok().unwrap();
+            let func = self.parse_func()?;
             println!("parsed func: {:?}", func);
-            Some(ItemKind::Function(Box::new(func)))
+            Ok(Some(ItemKind::Function(Box::new(func))))
         } else {
-            None
+            Ok(None)
         }
     }
 
@@ -183,11 +194,14 @@ impl<'a> Parser<'a> {
         // todo: import
 
         if !self.eat_keyword(keyword::Func) {
-            return Err(());
+            return Err(ParseError::Unhandled);
         }
 
         // parse name
-        let name = self.token.identifier(self.src).ok_or(())?;
+        let name = self
+            .token
+            .identifier(self.src)
+            .ok_or(ParseError::Unhandled)?;
         self.next();
 
         // todo: generics
@@ -199,24 +213,34 @@ impl<'a> Parser<'a> {
             if self.eat(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
                 break;
             }
-
-            let param_name = self.token.identifier(self.src).ok_or(())?;
+            let start = self.token.span;
+            let param_name = self
+                .token
+                .identifier(self.src)
+                .ok_or(ParseError::Unhandled)?;
             self.next();
             self.expect(&TokenKind::Colon)?;
-            let type_name = self.token.identifier(self.src).ok_or(())?;
-            self.next();
+            let type_name = self
+                .token
+                .identifier(self.src)
+                .ok_or(ParseError::Unhandled)?;
             params.push(Param {
                 name: param_name.to_string(),
                 type_str: type_name.to_string(),
                 r#type: None,
+                span: start.to(&self.token.span),
             });
+            self.next();
 
             _ = self.eat(&TokenKind::Comma);
         }
 
         // parse return type
         let return_type_str = if self.eat(&TokenKind::Arrow) {
-            let rtype = self.token.identifier(self.src).ok_or(())?;
+            let rtype = self
+                .token
+                .identifier(self.src)
+                .ok_or(ParseError::Unhandled)?;
             self.next();
             // TODO: change
             Some(rtype.to_string())
@@ -244,31 +268,40 @@ impl<'a> Parser<'a> {
     // parse a block of expressions
     // { [exprs] }
     fn parse_block(&mut self) -> Result<Block> {
+        let start = self.token.span;
         self.expect(&TokenKind::OpenDelimiter(Delimiter::Bracket))?;
         let mut expressions: Vec<Expression> = vec![];
         loop {
             if self.eat(&TokenKind::CloseDelimiter(Delimiter::Bracket)) {
                 break;
             }
-            let expr = self.parse_expr().ok_or(())?;
-            expressions.push(*expr);
+            if let Some(expr) = self.parse_expr()? {
+                expressions.push(expr);
+            }
         }
-        Ok(Block { expressions })
+        Ok(Block {
+            expressions,
+            span: start.until(&self.token.span),
+        })
     }
 }
 
 // expression parsing
 impl<'a> Parser<'a> {
-    pub fn parse_expr(&mut self) -> Option<Box<Expression>> {
+    pub fn parse_expr(&mut self) -> Result<Option<Expression>> {
         let left = self.parse_expr_unit()?;
-        if let TokenKind::BinOp(_) = self.token.kind {
-            self.parse_binary_expr(*left)
+        if let Some(left) = left {
+            if let TokenKind::BinOp(_) = self.token.kind {
+                self.parse_binary_expr(left)
+            } else {
+                Ok(Some(left))
+            }
         } else {
-            Some(left)
+            Err(ParseError::Unhandled)
         }
     }
 
-    pub fn parse_expr_unit(&mut self) -> Option<Box<Expression>> {
+    pub fn parse_expr_unit(&mut self) -> Result<Option<Expression>> {
         // return [expr]
         if self.check_keyword(keyword::Return) {
             // println!("return");
@@ -276,42 +309,44 @@ impl<'a> Parser<'a> {
         } else if self.check(&TokenKind::Identifier) {
             // [variable]
             // println!("identifier");
-            let name = self.token.identifier(self.src)?;
+            let name = self
+                .token
+                .identifier(self.src)
+                .ok_or(ParseError::Unhandled)?;
             self.next();
-            let variable = Expression::Variable(Variable {
-                name: name.to_string(),
-                r#type: None,
-            });
-            Some(Box::new(variable))
+            let variable = Expression::var(name.to_string(), self.token.span);
+            Ok(Some(variable))
         } else if self.check(&TokenKind::Literal) {
             let lit = self.token.as_str(self.src);
-            self.next();
             let lit = if lit.starts_with("\"") && lit.ends_with("\"") {
                 // parse string literal
                 panic!("todo: parse string literal");
             } else if let Ok(int) = lit.parse::<i32>() {
                 // parse integer literal
-                Some(Expression::Literal(LiteralKind::Integer(int)))
+                Expression::literal(LiteralKind::Integer(int), self.token.span)
             } else {
                 panic!("unknown literal: {}", lit);
-            }?;
-            Some(Box::new(lit))
+            };
+            self.next();
+            Ok(Some(lit))
         } else {
-            None
+            Err(ParseError::UnexpectedToken(self.token.span))
         }
     }
 
     // parse return expression
-    pub fn parse_return(&mut self) -> Option<Box<Expression>> {
+    pub fn parse_return(&mut self) -> Result<Option<Expression>> {
+        let start = self.token.span;
         if !self.eat_keyword(keyword::Return) {
-            return None;
+            return Err(ParseError::UnexpectedToken(start));
         }
-        Some(Box::new(Expression::Return(self.parse_expr())))
+        let expr = self.parse_expr()?;
+        Ok(Some(Expression::ret(expr, start.to(&self.token.span))))
     }
 
     // parse binary expression
     // expr [op] expr
-    pub fn parse_binary_expr(&mut self, left: Expression) -> Option<Box<Expression>> {
+    pub fn parse_binary_expr(&mut self, left: Expression) -> Result<Option<Expression>> {
         let mut op_stack: Vec<(BinaryOperator, u8)> = vec![];
         let mut expr_stack = vec![left];
         loop {
@@ -334,15 +369,11 @@ impl<'a> Parser<'a> {
                 &mut expr_stack,
             );
 
-            let right = *self.parse_expr_unit()?;
+            let right = self.parse_expr_unit()?.ok_or(ParseError::Unhandled)?;
             expr_stack.push(right);
         }
 
-        Some(Box::new(Self::parse_precedence(
-            None,
-            &mut op_stack,
-            &mut expr_stack,
-        )?))
+        Ok(Self::parse_precedence(None, &mut op_stack, &mut expr_stack))
     }
 
     // https://en.wikipedia.org/wiki/Simple_precedence_parser
@@ -398,12 +429,7 @@ impl<'a> Parser<'a> {
     fn reduce_op(operator: BinaryOperator, expr_stack: &mut Vec<Expression>) {
         match (expr_stack.pop(), expr_stack.pop()) {
             (Some(right), Some(left)) => {
-                expr_stack.push(Expression::BinOp(Box::new(BinaryOperation {
-                    left,
-                    right,
-                    operator,
-                    r#type: None,
-                })));
+                expr_stack.push(Expression::binop(left, right, operator));
             }
             _ => panic!("need 2 exprs to reduce"),
         }
@@ -425,6 +451,6 @@ impl<'a> Parser<'a> {
 // parses a list of tokens into an ast struct
 pub fn parse(src: &str, tokens: Vec<Token>) -> Result<Ast> {
     let mut parser = Parser::new(src, tokens);
-    let items = parser.parse_items();
+    let items = parser.parse_items()?;
     Ok(Ast { items })
 }
