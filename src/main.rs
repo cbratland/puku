@@ -3,10 +3,6 @@ use std::env;
 use std::io::{BufWriter, Read, Write};
 use std::process;
 
-use crate::parser::ParseError;
-
-extern crate bytecount;
-
 #[allow(dead_code)]
 mod ast;
 mod codegen;
@@ -14,6 +10,8 @@ mod codegen;
 mod lexer;
 mod parser;
 mod typechecker;
+
+use parser::ParseError;
 
 fn usage() -> ! {
     eprintln!("Usage: wasmlangc <file>");
@@ -36,20 +34,19 @@ fn main() {
 
     // pipeline
     let tokens = lexer::tokenize(&input_str);
-    println!("tokens: {:?}", tokens);
+    // println!("tokens: {:?}", tokens);
     let mut ast = match parser::parse(&input_str, tokens) {
         Ok(ast) => ast,
         Err(err) => {
             match err {
-                ParseError::Unhandled => println!("unhandled parser error!"),
+                ParseError::Unhandled => eprintln!("unhandled parser error!"),
                 ParseError::UnexpectedToken(span) => {
                     let loc = span.loc as usize;
                     let source_up_to = &input_str[..loc];
-                    let line =
-                        bytecount::count(source_up_to.as_bytes(), b'\n') + 1;
+                    let line = bytecount::count(source_up_to.as_bytes(), b'\n') + 1;
                     let col = loc - source_up_to.rfind('\n').unwrap_or(0);
                     let culprit = &input_str[loc..loc + span.len as usize];
-                    println!("{file_name}:{line}:{col}: unexpected token `{culprit}`");
+                    eprintln!("{file_name}:{line}:{col}: unexpected token `{culprit}`");
                 }
             }
             return;
@@ -87,6 +84,6 @@ fn main() {
                 .unwrap()
         );
     } else {
-        println!("add function not exported");
+        eprintln!("add function not exported");
     }
 }

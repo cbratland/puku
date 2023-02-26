@@ -126,16 +126,6 @@ pub struct Element {
     pub func_indexes: Vec<u32>,
 }
 
-// pub struct Module<'a> {
-//     pub types: Option<&'a [Type<'a>]>,
-//     pub imports: Option<&'a [Import]>,
-//     pub functions: Option<&'a [Function<'a>]>,
-//     pub tables: Option<&'a [Table]>,
-//     pub memories: Option<&'a [Memory]>,
-//     pub globals: Option<&'a [Global]>,
-//     pub exports: Option<&'a [Export<'a>]>,
-//     pub elements: Option<&'a [Element<'a>]>,
-// }
 pub struct Module {
     pub types: Option<Vec<Type>>,
     pub imports: Option<Vec<Import>>,

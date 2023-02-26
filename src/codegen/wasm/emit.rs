@@ -2,7 +2,6 @@ use super::ir::*;
 use std::io::{Seek, Write};
 
 use super::leb;
-use leb128;
 
 // errors
 #[derive(Debug)]

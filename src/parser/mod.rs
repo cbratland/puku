@@ -1,22 +1,3 @@
-// parser
-// some basic grammar, not complete or fully accurate
-
-// program  ::= (item)* EOF
-// item     ::= func
-// func     ::= ("export" | "import")* "func" IDENT "(" (func_arg)* ")" block?
-// func_arg ::= IDENT ":" TYPE ","
-
-// expr      ::= expr_unit | binary
-// expr_unit ::= return | block | func | func_call | unary | literal | "(" expr ")" | IDENT
-// return    ::= "return" expr
-// block     ::= "{" (expr)* "}"
-// func_call ::= IDENT "(" (expr ",")* ")"
-// binary    ::= expr_unit binop expr_unit
-//  binop     ::= "+" | "-" | "*" | "/"
-// unary     ::= uop expr
-//  uop       ::= "-" | "!"
-// literal   ::= NUMBER | STRING | "true" | "false"
-
 #[allow(non_upper_case_globals)]
 pub mod keyword;
 
@@ -25,11 +6,8 @@ mod tests;
 
 use std::cmp::Ordering;
 
-use crate::lexer::BinOpToken;
-
-use super::ast::*;
-// use std::collections::HashMap;
-use super::lexer::{Delimiter, Token, TokenKind};
+use crate::ast::*;
+use crate::lexer::{BinOpToken, Delimiter, Token, TokenKind};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -38,13 +16,6 @@ pub enum ParseError {
 }
 
 type Result<T> = std::result::Result<T, ParseError>;
-
-pub struct Parser<'a> {
-    pub src: &'a str,
-    pub token: Token, // current token
-    pub prev_token: Token,
-    pub stream: TokenStream,
-}
 
 #[derive(Clone)]
 pub struct TokenStream {
@@ -65,6 +36,13 @@ impl TokenStream {
             None => Token::new(TokenKind::Eof, 0, 0),
         }
     }
+}
+
+pub struct Parser<'a> {
+    pub src: &'a str,
+    pub token: Token, // current token
+    pub prev_token: Token,
+    pub stream: TokenStream,
 }
 
 impl<'a> Parser<'a> {

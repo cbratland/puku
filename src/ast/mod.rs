@@ -1,6 +1,6 @@
-pub mod symbols;
+pub mod symbol;
 
-pub use symbols::*;
+pub use symbol::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BasicType {

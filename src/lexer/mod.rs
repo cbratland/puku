@@ -1,119 +1,12 @@
 #[cfg(test)]
 mod tests;
+mod token;
 
-use crate::ast::Span;
 use std::str::Chars;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum BinOpToken {
-    Plus,       // +
-    Minus,      // -
-    Star,       // *
-    Slash,      // /
-    Percent,    // %
-    Caret,      // ^
-    And,        // &
-    Pipe,       // |
-    ShiftLeft,  // <<
-    ShiftRight, // >>
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Delimiter {
-    Parenthesis, // ()
-    Brace,       // []
-    Bracket,     // {}
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TokenKind {
-    // String,
-    // Identifier(String),
-    // Number,
-    // Keyword(String),
-    // Punctuator,
-    // Operator,
-    // LParen,
-    // RParen,
-    // LBracket,
-    // RBracket,
-
-    // Arrow,
-    // Colon,
-    // Comma,
-
-    // Operator(OperatorKind),
-    Equal,       // =
-    EqualEqual,  // ==
-    NotEqual,    // !=
-    LThan,       // <
-    LThanEqual,  // <=
-    GThan,       // >
-    GThanEqual,  // >=
-    AndAnd,      // &&
-    PipePipe,    // ||
-    Exclamation, // !
-    BinOp(BinOpToken),
-    BinOpEqual(BinOpToken),
-    Comma,    // ,
-    Arrow,    // ->
-    Question, // ?
-    Colon,    // :
-    OpenDelimiter(Delimiter),
-    CloseDelimiter(Delimiter),
-    LineComment,  // //
-    BlockComment, // /* */
-    DocComment,   // ///
-    Literal,
-    Identifier,
-    Eof,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub span: Span,
-}
-
-impl Token {
-    pub fn is_op(&self) -> bool {
-        use TokenKind::*;
-        match self.kind {
-            Equal | LThan | LThanEqual | EqualEqual | NotEqual | GThanEqual | GThan | AndAnd
-            | PipePipe | Exclamation | BinOp(_) | BinOpEqual(_) | Comma | Colon => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_keyword(&self, src: &str, keyword: &str) -> bool {
-        self.kind == TokenKind::Identifier && self.as_str(src) == keyword
-    }
-
-    pub fn as_str<'a>(&self, src: &'a str) -> &'a str {
-        let loc = self.span.loc as usize;
-        &src[loc..loc + self.span.len as usize]
-    }
-
-    pub fn identifier<'a>(&self, src: &'a str) -> Option<&'a str> {
-        if self.kind == TokenKind::Identifier {
-            Some(self.as_str(src))
-        } else {
-            None
-        }
-    }
-}
-
-impl Token {
-    pub fn new(kind: TokenKind, loc: u32, len: u16) -> Self {
-        Self {
-            kind,
-            span: Span { loc, len },
-        }
-    }
-}
+pub use token::*;
 
 pub struct Lexer<'a> {
-    pub src: &'a str,
+    // pub src: &'a str,
     chars: Chars<'a>,
     pub loc: u32,
     len_remaining: usize,
@@ -123,7 +16,7 @@ pub struct Lexer<'a> {
 impl<'a> Lexer<'a> {
     pub fn new(src: &'a str) -> Self {
         Self {
-            src,
+            // src,
             chars: src.chars(),
             loc: 0,
             len_remaining: src.len(),
@@ -302,80 +195,6 @@ pub fn tokenize<'a>(src: &'a str) -> Vec<Token> {
         }
     }
     return tokens;
-
-    // let mut tokens = vec![];
-    // let mut location: usize = 0;
-
-    // let keywords = vec!["export", "func", "return"];
-
-    // let mut cur_token: String = String::new();
-
-    // for char in code.chars() {
-    //     fn yes(cur_token: &mut String, keywords: &Vec<&str>) -> Token {
-    //         let kind = if keywords.contains(&cur_token.as_str()) {
-    //             TokenKind::Keyword(cur_token.clone())
-    //         } else {
-    //             TokenKind::Identifier(cur_token.clone())
-    //         };
-    //         *cur_token = String::new();
-    //         Token::new(kind, 0)
-    //     }
-    //     let kind = match char {
-    //         ' ' | '\n' | '\t' => {
-    //             if !cur_token.is_empty() {
-    //                 tokens.push(yes(&mut cur_token, &keywords));
-    //             }
-    //             continue;
-    //         } // skip whitespace
-    //         '(' => {
-    //             if !cur_token.is_empty() {
-    //                 tokens.push(yes(&mut cur_token, &keywords));
-    //             }
-    //             TokenKind::LParen
-    //         }
-    //         ')' => {
-    //             if !cur_token.is_empty() {
-    //                 tokens.push(yes(&mut cur_token, &keywords));
-    //             }
-    //             TokenKind::RParen
-    //         }
-    //         '{' => TokenKind::LBracket,
-    //         '}' => TokenKind::RBracket,
-    //         ':' => {
-    //             if !cur_token.is_empty() {
-    //                 tokens.push(yes(&mut cur_token, &keywords));
-    //             }
-    //             TokenKind::Colon
-    //         }
-    //         ',' => {
-    //             if !cur_token.is_empty() {
-    //                 tokens.push(yes(&mut cur_token, &keywords));
-    //             }
-    //             TokenKind::Comma
-    //         }
-    //         '-' => {
-    //             cur_token.push(char);
-    //             continue;
-    //         }
-    //         '>' => {
-    //             if cur_token == "-" {
-    //                 cur_token = String::new();
-    //                 TokenKind::Arrow
-    //             } else {
-    //                 panic!("lol no greater than");
-    //             }
-    //         }
-    //         '+' => TokenKind::Operator(OperatorKind::Plus),
-    //         _ => {
-    //             cur_token.push(char);
-    //             continue;
-    //         }
-    //     };
-    //     tokens.push(Token::new(kind, location));
-    //     location += 1;
-    // }
-
-    // println!("{:?}", tokens);
 
     // let tokens = vec![
     //     Token::new(TokenKind::Keyword(String::from("export")), 0),

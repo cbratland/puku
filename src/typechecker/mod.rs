@@ -1,4 +1,4 @@
-use super::ast::*;
+use crate::ast::*;
 
 pub fn check(ast: &mut Ast) {
     let mut symbol_table = SymbolTable::new();

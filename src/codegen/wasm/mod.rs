@@ -65,6 +65,9 @@ fn type_to_wasm(ast_type: &ast::Type) -> Valtype {
     match ast_type {
         ast::Type::Basic(basic) => match basic {
             ast::BasicType::Int32 => Valtype::I32,
+            ast::BasicType::Int64 => Valtype::I64,
+            ast::BasicType::Float32 => Valtype::F32,
+            ast::BasicType::Float64 => Valtype::F64,
             _ => panic!("unknown basic type {:?}", basic),
         },
         _ => panic!("unknown type {:?}", ast_type),
