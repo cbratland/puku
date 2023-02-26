@@ -248,9 +248,7 @@ impl<'a> Parser<'a> {
         self.expect(&TokenKind::OpenDelimiter(Delimiter::Bracket))?;
         let mut expressions: Vec<Expression> = vec![];
         while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Bracket)) {
-            if let Some(expr) = self.parse_expr()? {
-                expressions.push(expr);
-            }
+            expressions.push(self.parse_expr()?);
         }
         Ok(Block {
             expressions,
@@ -261,25 +259,49 @@ impl<'a> Parser<'a> {
 
 // expression parsing
 impl<'a> Parser<'a> {
-    pub fn parse_expr(&mut self) -> Result<Option<Expression>> {
+    pub fn parse_expr(&mut self) -> Result<Expression> {
         if self.check_keyword(keyword::Return) {
             // return [expr]
             self.parse_return()
         } else {
             let left = self.parse_expr_unit()?;
             if self.token.is_bin_op() {
-                self.parse_binary_expr(left)
+                let result = self.parse_binary_expr(left)?;
+                result.ok_or_else(ParseError::unhandled)
             } else {
-                Ok(Some(left))
+                Ok(left)
             }
         }
     }
 
     // parse stuff that could be added together in a binary expression
     pub fn parse_expr_unit(&mut self) -> Result<Expression> {
-        if self.check(&TokenKind::Identifier) {
-            // [variable]
-            // println!("identifier");
+        if matches!(
+            self.token.kind,
+            TokenKind::BinOp(BinOpToken::Minus)
+                | TokenKind::BinOp(BinOpToken::Plus)
+                | TokenKind::Exclamation
+        ) {
+            // unary
+            let operator = match self.token.kind {
+                TokenKind::BinOp(BinOpToken::Minus) => UnaryOperator::Minus,
+                TokenKind::BinOp(BinOpToken::Plus) => UnaryOperator::Plus,
+                TokenKind::Exclamation => UnaryOperator::Not,
+                _ => panic!(),
+            };
+            self.next();
+            let expr = self.parse_expr_unit()?;
+            Ok(Expression::uop(expr, operator))
+        } else if self.check(&TokenKind::OpenDelimiter(Delimiter::Parenthesis)) {
+            // group
+            let start = self.token.span;
+            self.eat(&TokenKind::OpenDelimiter(Delimiter::Parenthesis));
+            let expr = self.parse_expr()?;
+            let span = start.until(&self.token.span);
+            self.expect(&TokenKind::CloseDelimiter(Delimiter::Parenthesis))?;
+            Ok(Expression::group(expr, span))
+        } else if self.check(&TokenKind::Identifier) {
+            // variable
             let name = self.token.identifier(self.src).ok_or_else(|| {
                 ParseError::expected_token(&TokenKind::Identifier, self.token.span)
             })?;
@@ -291,6 +313,7 @@ impl<'a> Parser<'a> {
             self.next();
             Ok(result)
         } else if let TokenKind::Literal(kind) = &self.token.kind {
+            // literal
             let lit = self.token.as_str(self.src);
             let lit = match kind {
                 LiteralKind::String => panic!("todo: parse string literal"),
@@ -320,13 +343,13 @@ impl<'a> Parser<'a> {
     }
 
     // parse return expression
-    pub fn parse_return(&mut self) -> Result<Option<Expression>> {
+    pub fn parse_return(&mut self) -> Result<Expression> {
         let start = self.token.span;
         if !self.eat_keyword(keyword::Return) {
             return Err(ParseError::expected_keyword(keyword::Return, start));
         }
         let expr = self.parse_expr()?;
-        Ok(Some(Expression::ret(expr, start.to(&self.token.span))))
+        Ok(Expression::ret(Some(expr), start.to(&self.token.span)))
     }
 
     // parse binary expression

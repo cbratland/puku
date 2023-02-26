@@ -170,11 +170,26 @@ pub enum Opcode {
     F32Const = 0x43,
     F64Const = 0x44,
 
+    I32Eqz = 0x45,
+    I32Eq = 0x46,
+    I32Ne = 0x47,
+    I64Eqz = 0x50,
+    I64Eq = 0x51,
+    I64Ne = 0x52,
+    F32Eq = 0x5B,
+    F32Ne = 0x5C,
+    F64Eq = 0x61,
+    F64Ne = 0x62,
+
     I32Add = 0x6A,
     I32Sub = 0x6B,
     I32Mul = 0x6C,
     I32DivS = 0x6D,
     I32DivU = 0x6E,
+    I32And = 0x71,
+    I32Or = 0x72,
+    I32Xor = 0x73,
+    I32Shl = 0x74,
 
     I64Add = 0x7C,
     I64Sub = 0x7D,
@@ -186,4 +201,9 @@ pub enum Opcode {
     F32Sub = 0x93,
     F32Mul = 0x94,
     F32Div = 0x95,
+
+    F64Add = 0xA0,
+    F64Sub = 0xA1,
+    F64Mul = 0xA2,
+    F64Div = 0xA3,
 }

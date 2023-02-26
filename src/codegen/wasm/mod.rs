@@ -5,7 +5,7 @@ mod leb;
 
 pub use emit::emit;
 
-use crate::ast::{self, BinaryOperator, Expression, ExpressionKind, ItemKind};
+use crate::ast::{self, BinaryOperator, Expression, ExpressionKind, ItemKind, UnaryOperator};
 use ir::*;
 use std::collections::HashMap;
 
@@ -121,7 +121,7 @@ fn gen_expr_code<W: std::io::Write>(
                         Valtype::I32 => Opcode::I32Add,
                         Valtype::I64 => Opcode::I64Add,
                         Valtype::F32 => Opcode::F32Add,
-                        // Valtype::F64 => Opcode::F64Add,
+                        Valtype::F64 => Opcode::F64Add,
                         _ => panic!("unknown type {:?}", op.r#type),
                     },
                     BinaryOperator::Sub => match wasm_type {
@@ -134,6 +134,14 @@ fn gen_expr_code<W: std::io::Write>(
                         Valtype::I32 => Opcode::I32Mul,
                         Valtype::I64 => Opcode::I64Mul,
                         Valtype::F32 => Opcode::F32Mul,
+                        _ => panic!("unknown type {:?}", op.r#type),
+                    },
+                    BinaryOperator::And | BinaryOperator::AndAnd => match wasm_type {
+                        Valtype::I32 => Opcode::I32And,
+                        _ => panic!("unknown type {:?}", op.r#type),
+                    },
+                    BinaryOperator::Or | BinaryOperator::OrOr => match wasm_type {
+                        Valtype::I32 => Opcode::I32Or,
                         _ => panic!("unknown type {:?}", op.r#type),
                     },
                     _ => todo!(),
@@ -155,7 +163,47 @@ fn gen_expr_code<W: std::io::Write>(
             }
             _ => panic!("unhandled literal"),
         },
-        _ => todo!(),
+        ExpressionKind::Group(expr) => gen_expr_code(buffer, expr, locals),
+        ExpressionKind::UnaryOp(op) => match op.operator {
+            UnaryOperator::Minus => {
+                let wasm_type = type_to_wasm(&op.r#type.expect("missing type"));
+                buffer
+                    .write_all(&[
+                        match wasm_type {
+                            Valtype::I32 => Opcode::I32Const,
+                            Valtype::I64 => Opcode::I64Const,
+                            Valtype::F32 => Opcode::F32Const,
+                            Valtype::F64 => Opcode::F64Const,
+                            Valtype::V128 => todo!(),
+                        } as u8,
+                        0,
+                    ])
+                    .unwrap();
+                gen_expr_code(buffer, &op.expr, locals);
+                buffer
+                    .write_all(&[match wasm_type {
+                        Valtype::I32 => Opcode::I32Sub,
+                        Valtype::I64 => Opcode::I64Sub,
+                        Valtype::F32 => Opcode::F32Sub,
+                        Valtype::F64 => Opcode::F64Sub,
+                        _ => panic!("unknown type {:?}", op.r#type),
+                    } as u8])
+                    .unwrap();
+            }
+            UnaryOperator::Plus => gen_expr_code(buffer, &op.expr, locals), // useless
+            UnaryOperator::Not => {
+                gen_expr_code(buffer, &op.expr, locals);
+                let wasm_type = type_to_wasm(&op.r#type.expect("missing type"));
+                buffer
+                    .write_all(&[match wasm_type {
+                        Valtype::I32 => Opcode::I32Eqz,
+                        Valtype::I64 => Opcode::I64Eqz,
+                        _ => panic!("unknown type {:?}", op.r#type),
+                    } as u8])
+                    .unwrap();
+            }
+        },
+        _ => panic!("unhandled expression {:?}", expression.kind),
     }
 }
 

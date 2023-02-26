@@ -81,6 +81,15 @@ fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Type {
             LiteralKind::Bool(_) => Type::Basic(BasicType::Bool),
             _ => panic!("unhandled literal kind {:?}", lit),
         },
+        ExpressionKind::Group(expr) => check_expr(expr, symbol_table),
+        ExpressionKind::UnaryOp(op) => {
+            let utype = check_expr(&mut op.expr, symbol_table);
+            op.r#type = Some(utype);
+            if op.operator == UnaryOperator::Not && utype != Type::Basic(BasicType::Bool) {
+                panic!("unary not (!) should only be used on a boolean expression")
+            }
+            utype
+        }
         _ => panic!("unhandled expression {:?}", expr),
     }
 }

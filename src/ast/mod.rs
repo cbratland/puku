@@ -94,9 +94,12 @@ pub enum ExpressionKind {
     // Call(Box<Expression>, Vec<Box<Expression>>),
     // for/for n/for in
     // if
+    // (expr)
+    Group(Box<Expression>),
     // binary op `x + 3`, etc.
     BinOp(Box<BinaryOperation>),
     // unary op `-x`, `!x`, etc.
+    UnaryOp(Box<UnaryOperation>),
     // block
     Block(Block),
     // literal
@@ -132,6 +135,21 @@ impl Expression {
         }
     }
 
+    pub fn uop(expr: Expression, operator: UnaryOperator) -> Self {
+        let span = Span {
+            loc: expr.span.loc - 1,
+            len: expr.span.len + 1,
+        };
+        Self {
+            kind: ExpressionKind::UnaryOp(Box::new(UnaryOperation {
+                expr,
+                operator,
+                r#type: None,
+            })),
+            span,
+        }
+    }
+
     pub fn var(name: String, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Variable(Variable { name, r#type: None }),
@@ -142,6 +160,13 @@ impl Expression {
     pub fn literal(kind: LiteralKind, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Literal(kind),
+            span,
+        }
+    }
+
+    pub fn group(expr: Expression, span: Span) -> Self {
+        Self {
+            kind: ExpressionKind::Group(Box::new(expr)),
             span,
         }
     }
@@ -239,6 +264,20 @@ pub struct BinaryOperation {
     pub left: Expression,
     pub right: Expression,
     pub operator: BinaryOperator,
+    pub r#type: Option<Type>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOperator {
+    Plus,
+    Minus,
+    Not,
+}
+
+#[derive(Debug)]
+pub struct UnaryOperation {
+    pub expr: Expression,
+    pub operator: UnaryOperator,
     pub r#type: Option<Type>,
 }
 
