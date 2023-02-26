@@ -6,7 +6,6 @@ use std::str::Chars;
 pub use token::*;
 
 pub struct Lexer<'a> {
-    // pub src: &'a str,
     chars: Chars<'a>,
     pub loc: u32,
     len_remaining: usize,
@@ -16,7 +15,6 @@ pub struct Lexer<'a> {
 impl<'a> Lexer<'a> {
     pub fn new(src: &'a str) -> Self {
         Self {
-            // src,
             chars: src.chars(),
             loc: 0,
             len_remaining: src.len(),
@@ -96,7 +94,21 @@ impl<'a> Lexer<'a> {
                         self.eat_while(|c| c != '\n');
                         kind
                     }
-                    // '*' => {} // TODO: block comments
+                    '*' => {
+                        self.next();
+                        while let Some(c) = self.next() {
+                            match c {
+                                '*' => {
+                                    if self.peek() == '/' {
+                                        self.next();
+                                        break;
+                                    }
+                                }
+                                _ => continue,
+                            }
+                        }
+                        TokenKind::BlockComment
+                    }
                     _ => TokenKind::BinOp(BinOpToken::Slash),
                 },
 
@@ -109,10 +121,13 @@ impl<'a> Lexer<'a> {
 
                 ',' => TokenKind::Comma,
                 ':' => TokenKind::Colon,
+                '?' => TokenKind::Question,
                 '(' => TokenKind::OpenDelimiter(Delimiter::Parenthesis),
                 ')' => TokenKind::CloseDelimiter(Delimiter::Parenthesis),
                 '{' => TokenKind::OpenDelimiter(Delimiter::Bracket),
                 '}' => TokenKind::CloseDelimiter(Delimiter::Bracket),
+                '[' => TokenKind::OpenDelimiter(Delimiter::Brace),
+                ']' => TokenKind::CloseDelimiter(Delimiter::Brace),
 
                 '-' => match self.peek() {
                     '>' => {
@@ -126,7 +141,7 @@ impl<'a> Lexer<'a> {
                 '%' => TokenKind::BinOp(BinOpToken::Percent),
                 '^' => TokenKind::BinOp(BinOpToken::Caret),
                 '&' => match self.peek() {
-                    '|' => {
+                    '&' => {
                         self.next();
                         TokenKind::AndAnd
                     }
@@ -162,13 +177,50 @@ impl<'a> Lexer<'a> {
                     }
                     _ => TokenKind::GThan,
                 },
+                '=' => match self.peek() {
+                    '=' => {
+                        self.next();
+                        TokenKind::EqualEqual
+                    }
+                    _ => TokenKind::Equal,
+                },
+                '!' => match self.peek() {
+                    '=' => {
+                        self.next();
+                        TokenKind::NotEqual
+                    }
+                    _ => TokenKind::Exclamation,
+                },
+
+                c if c == '"' || c == '\'' => {
+                    let kind = match c {
+                        '"' => LiteralKind::String,
+                        '\'' => LiteralKind::Char,
+                        _ => panic!(),
+                    };
+                    self.eat_while(|c2| c2 != '\n' && c2 != c);
+                    if self.next().unwrap_or(' ') != c {
+                        panic!("expected closing `{c}`")
+                    }
+                    TokenKind::Literal(kind)
+                }
 
                 c if c == '_' || unicode_xid::UnicodeXID::is_xid_start(c) => {
                     self.eat_while(unicode_xid::UnicodeXID::is_xid_continue);
                     TokenKind::Identifier
                 }
 
-                c if c.is_numeric() => TokenKind::Literal,
+                c if c.is_numeric() => {
+                    let mut kind = LiteralKind::Integer;
+                    loop {
+                        match self.next().unwrap_or(' ') {
+                            c if c.is_numeric() => continue,
+                            '.' => kind = LiteralKind::Float,
+                            _ => break,
+                        }
+                    }
+                    TokenKind::Literal(kind)
+                }
 
                 _ => panic!("unknown token"),
             };
@@ -183,7 +235,7 @@ impl<'a> Lexer<'a> {
     }
 }
 
-pub fn tokenize<'a>(src: &'a str) -> Vec<Token> {
+pub fn tokenize(src: &str) -> Vec<Token> {
     let mut lexer = Lexer::new(src);
     let mut tokens: Vec<Token> = vec![];
     loop {
@@ -195,29 +247,4 @@ pub fn tokenize<'a>(src: &'a str) -> Vec<Token> {
         }
     }
     tokens
-
-    // let tokens = vec![
-    //     Token::new(TokenKind::Keyword(String::from("export")), 0),
-    //     Token::new(TokenKind::Keyword(String::from("func")), 0),
-    //     Token::new(TokenKind::Identifier(String::from("add")), 0),
-    //     Token::new(TokenKind::LParen, 0),
-    //     Token::new(TokenKind::Identifier(String::from("a")), 0),
-    //     Token::new(TokenKind::Colon, 0),
-    //     Token::new(TokenKind::Identifier(String::from("i32")), 0),
-    //     Token::new(TokenKind::Comma, 0),
-    //     Token::new(TokenKind::Identifier(String::from("b")), 0),
-    //     Token::new(TokenKind::Colon, 0),
-    //     Token::new(TokenKind::Identifier(String::from("i32")), 0),
-    //     Token::new(TokenKind::RParen, 0),
-    //     Token::new(TokenKind::Arrow, 0),
-    //     Token::new(TokenKind::Identifier(String::from("i32")), 0),
-    //     Token::new(TokenKind::LBracket, 0),
-    //     Token::new(TokenKind::Keyword(String::from("return")), 0),
-    //     Token::new(TokenKind::Identifier(String::from("a")), 0),
-    //     Token::new(TokenKind::Operator(OperatorKind::Plus), 0),
-    //     Token::new(TokenKind::Identifier(String::from("b")), 0),
-    //     Token::new(TokenKind::RBracket, 0),
-    // ];
-
-    // tokens
 }

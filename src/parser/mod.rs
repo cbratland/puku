@@ -6,8 +6,8 @@ mod tests;
 
 mod error;
 
-use crate::ast::*;
-use crate::lexer::{BinOpToken, Delimiter, Token, TokenKind};
+use crate::ast::{self, *};
+use crate::lexer::{BinOpToken, Delimiter, LiteralKind, Token, TokenKind};
 pub use error::*;
 use std::cmp::Ordering;
 
@@ -287,16 +287,19 @@ impl<'a> Parser<'a> {
             self.next();
             let variable = Expression::var(name.to_string(), self.token.span);
             Ok(variable)
-        } else if self.check(&TokenKind::Literal) {
+        } else if let TokenKind::Literal(kind) = &self.token.kind {
             let lit = self.token.as_str(self.src);
-            let lit = if lit.starts_with('"') && lit.ends_with('"') {
-                // parse string literal
-                panic!("todo: parse string literal");
-            } else if let Ok(int) = lit.parse::<i32>() {
-                // parse integer literal
-                Expression::literal(LiteralKind::Integer(int), self.token.span)
-            } else {
-                panic!("unknown literal: {}", lit);
+            let lit = match kind {
+                LiteralKind::String => panic!("todo: parse string literal"),
+                LiteralKind::Integer => {
+                    // parse integer literal
+                    if let Ok(int) = lit.parse::<i32>() {
+                        Expression::literal(ast::LiteralKind::Integer(int), self.token.span)
+                    } else {
+                        panic!("invalid")
+                    }
+                }
+                _ => panic!("unknown literal: {}", lit),
             };
             self.next();
             Ok(lit)

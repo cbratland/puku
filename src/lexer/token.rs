@@ -22,6 +22,14 @@ pub enum Delimiter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiteralKind {
+    String,
+    Char,
+    Integer,
+    Float,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
     Equal,       // =
     EqualEqual,  // ==
@@ -44,25 +52,42 @@ pub enum TokenKind {
     LineComment,  // //
     BlockComment, // /* */
     DocComment,   // ///
-    Literal,
+    Literal(LiteralKind),
     Identifier,
     Eof,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
 }
 
 impl Token {
-    pub fn is_op(&self) -> bool {
+    // pub fn is_op(&self) -> bool {
+    //     use TokenKind::*;
+    //     matches!(
+    //         self.kind,
+    //         Equal
+    //             | LThan
+    //             | LThanEqual
+    //             | EqualEqual
+    //             | NotEqual
+    //             | GThanEqual
+    //             | GThan
+    //             | AndAnd
+    //             | PipePipe
+    //             | Exclamation
+    //             | BinOp(_)
+    //             | BinOpEqual(_)
+    //             | Comma
+    //             | Colon
+    //     )
+    // }
+
+    pub fn is_comment(&self) -> bool {
         use TokenKind::*;
-        match self.kind {
-            Equal | LThan | LThanEqual | EqualEqual | NotEqual | GThanEqual | GThan | AndAnd
-            | PipePipe | Exclamation | BinOp(_) | BinOpEqual(_) | Comma | Colon => true,
-            _ => false,
-        }
+        matches!(self.kind, LineComment | DocComment | BlockComment)
     }
 
     pub fn is_keyword(&self, src: &str, keyword: &str) -> bool {
