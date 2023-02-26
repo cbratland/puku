@@ -56,7 +56,7 @@ fn main() {
     let mut file = std::fs::File::open("./tmp.wasm").expect("no file found");
     let metadata = std::fs::metadata("./tmp.wasm").expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
-    file.read(&mut buffer).expect("buffer overflow");
+    file.read_exact(&mut buffer).expect("file read failed");
     println!("bytes: {:02X?}", &buffer);
 
     // run wasm

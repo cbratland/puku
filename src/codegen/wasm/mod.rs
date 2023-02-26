@@ -10,7 +10,7 @@ use ir::*;
 use std::collections::HashMap;
 
 // todo: make this better
-pub fn gen_ir<'a>(ast: ast::Ast) -> Module {
+pub fn gen_ir(ast: ast::Ast) -> Module {
     let mut types: Vec<ir::Type> = vec![];
     let mut functions: Vec<ir::Function> = vec![];
     let mut exports: Vec<ir::Export> = vec![];
@@ -151,7 +151,7 @@ fn gen_expr_code<W: std::io::Write>(
             }
             ast::LiteralKind::Bool(bool) => {
                 buffer.write_all(&[Opcode::I32Const as u8]).unwrap();
-                leb128::write::signed(buffer, if *bool { 1 } else { 0 }).unwrap();
+                leb128::write::signed(buffer, i64::from(*bool)).unwrap();
             }
             _ => panic!("unhandled literal"),
         },

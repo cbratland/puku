@@ -173,10 +173,7 @@ impl<'a> Parser<'a> {
         let name = self
             .token
             .identifier(self.src)
-            .ok_or(ParseError::expected_token(
-                &TokenKind::Identifier,
-                self.token.span,
-            ))?;
+            .ok_or_else(|| ParseError::expected_token(&TokenKind::Identifier, self.token.span))?;
         self.next();
 
         // todo: generics
@@ -190,13 +187,9 @@ impl<'a> Parser<'a> {
             }
             let start = self.token.span;
             // parameter name
-            let param_name = self
-                .token
-                .identifier(self.src)
-                .ok_or(ParseError::expected_token(
-                    &TokenKind::Identifier,
-                    self.token.span,
-                ))?;
+            let param_name = self.token.identifier(self.src).ok_or_else(|| {
+                ParseError::expected_token(&TokenKind::Identifier, self.token.span)
+            })?;
             self.next();
             self.expect(&TokenKind::Colon)?;
             // parameter type
@@ -243,11 +236,7 @@ impl<'a> Parser<'a> {
             attrs: FunctionAttributes { export },
             name: name.to_string(),
             params,
-            return_type: if let Some(span) = return_type {
-                Some(Type::Unchecked(span))
-            } else {
-                None
-            },
+            return_type: return_type.map(Type::Unchecked),
             block,
         })
     }
@@ -291,13 +280,9 @@ impl<'a> Parser<'a> {
         if self.check(&TokenKind::Identifier) {
             // [variable]
             // println!("identifier");
-            let name = self
-                .token
-                .identifier(self.src)
-                .ok_or(ParseError::expected_token(
-                    &TokenKind::Identifier,
-                    self.token.span,
-                ))?;
+            let name = self.token.identifier(self.src).ok_or_else(|| {
+                ParseError::expected_token(&TokenKind::Identifier, self.token.span)
+            })?;
             let result = match name {
                 "true" => Expression::literal(ast::LiteralKind::Bool(true), self.token.span),
                 "false" => Expression::literal(ast::LiteralKind::Bool(false), self.token.span),

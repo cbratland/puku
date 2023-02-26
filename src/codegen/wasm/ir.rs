@@ -137,7 +137,7 @@ pub struct Module {
     pub elements: Option<Vec<Element>>,
 }
 
-impl<'a> Default for Module {
+impl Default for Module {
     fn default() -> Self {
         Self {
             types: None,

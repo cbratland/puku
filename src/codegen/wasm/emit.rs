@@ -42,20 +42,20 @@ pub fn emit<W: std::io::Write + std::io::Seek>(
     if let Some(types) = module.types {
         if !types.is_empty() {
             // println!("writing type section");
-            buffer.write(&[Section::Type as u8])?;
+            buffer.write_all(&[Section::Type as u8])?;
 
             let header_offset = reserve_header(buffer)?;
 
             leb128::write::unsigned(buffer, types.len() as u64)?;
             for type_obj in types {
-                buffer.write(&[function_type])?;
+                buffer.write_all(&[function_type])?;
                 leb128::write::unsigned(buffer, type_obj.params.len() as u64)?;
                 for param in type_obj.params {
-                    buffer.write(&[param as u8])?;
+                    buffer.write_all(&[param as u8])?;
                 }
                 leb128::write::unsigned(buffer, type_obj.returns.len() as u64)?;
                 for ret in type_obj.returns {
-                    buffer.write(&[ret as u8])?;
+                    buffer.write_all(&[ret as u8])?;
                 }
             }
 
@@ -85,7 +85,7 @@ pub fn emit<W: std::io::Write + std::io::Seek>(
                     }
                     ImportKind::Global(global_type) => {
                         leb128::write::unsigned(buffer, global_type.valtype as u64)?;
-                        buffer.write_all(&[if global_type.mutable { 1 } else { 0 }])?;
+                        buffer.write_all(&[global_type.mutable as u8])?;
                     }
                     ImportKind::Table(table) => {
                         leb128::write::unsigned(buffer, table.reftype as u64)?;
@@ -146,7 +146,7 @@ pub fn emit<W: std::io::Write + std::io::Seek>(
             leb128::write::unsigned(buffer, globals.len() as u64)?;
             for global in globals {
                 buffer.write_all(&[global.global_type.valtype as u8])?;
-                buffer.write_all(&[if global.global_type.mutable { 1 } else { 0 }])?;
+                buffer.write_all(&[global.global_type.mutable as u8])?;
                 emit_init(buffer, &global.init)?;
             }
 
@@ -178,7 +178,7 @@ pub fn emit<W: std::io::Write + std::io::Seek>(
     if let Some(functions) = module.functions {
         if !functions.is_empty() {
             // println!("writing code section");
-            buffer.write(&[Section::Code as u8])?;
+            buffer.write_all(&[Section::Code as u8])?;
 
             let header_offset = reserve_header(buffer)?;
 
@@ -189,10 +189,10 @@ pub fn emit<W: std::io::Write + std::io::Seek>(
                 leb128::write::unsigned(buffer, func_len as u64)?;
                 leb128::write::unsigned(buffer, locals_len as u64)?;
                 for local in func.code.locals {
-                    buffer.write(&[local as u8])?;
+                    buffer.write_all(&[local as u8])?;
                 }
                 buffer.write_all(&func.code.body)?;
-                buffer.write(&[Opcode::End as u8])?;
+                buffer.write_all(&[Opcode::End as u8])?;
             }
 
             write_header(buffer, header_offset)?;
@@ -208,27 +208,27 @@ fn emit_init<W: std::io::Write>(
 ) -> Result<()> {
     match init_expr {
         InitExpression::I32Const(val) => {
-            buffer.write(&[Opcode::I32Const as u8])?;
+            buffer.write_all(&[Opcode::I32Const as u8])?;
             leb128::write::signed(buffer, *val as i64)?;
         }
         InitExpression::I64Const(val) => {
-            buffer.write(&[Opcode::I64Const as u8])?;
+            buffer.write_all(&[Opcode::I64Const as u8])?;
             leb128::write::signed(buffer, *val)?;
         }
         InitExpression::F32Const(val) => {
-            buffer.write(&[Opcode::F32Const as u8])?;
+            buffer.write_all(&[Opcode::F32Const as u8])?;
             buffer.write_all(&(*val as u32).to_be_bytes())?;
         }
         InitExpression::F64Const(val) => {
-            buffer.write(&[Opcode::F32Const as u8])?;
+            buffer.write_all(&[Opcode::F32Const as u8])?;
             buffer.write_all(&(*val as u64).to_be_bytes())?;
         }
         InitExpression::GlobalGet(val) => {
-            buffer.write(&[Opcode::GlobalGet as u8])?;
+            buffer.write_all(&[Opcode::GlobalGet as u8])?;
             leb128::write::unsigned(buffer, *val as u64)?;
         }
     };
-    buffer.write(&[Opcode::End as u8])?;
+    buffer.write_all(&[Opcode::End as u8])?;
     Ok(())
 }
 
@@ -236,7 +236,7 @@ fn emit_limits<W: std::io::Write>(
     buffer: &mut std::io::BufWriter<W>,
     limits: &Limits,
 ) -> Result<()> {
-    leb128::write::unsigned(buffer, if limits.max.is_some() { 1 } else { 0 })?;
+    leb128::write::unsigned(buffer, limits.max.is_some() as u64)?;
     leb128::write::unsigned(buffer, limits.min as u64)?;
     if let Some(max) = limits.max {
         leb128::write::unsigned(buffer, max as u64)?;
