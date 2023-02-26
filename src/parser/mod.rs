@@ -57,6 +57,9 @@ impl<'a> Parser<'a> {
     pub fn next(&mut self) {
         let next = self.stream.next();
         self.prev_token = std::mem::replace(&mut self.token, next);
+        if self.token.is_comment() {
+            self.next();
+        }
     }
 
     // check if current token is kind
@@ -128,11 +131,6 @@ impl<'a> Parser<'a> {
 
     // parse an item
     pub fn parse_item(&mut self) -> Result<Option<Item>> {
-        // skip comments
-        // todo: comments need to be skipped everywhere
-        while self.check(&TokenKind::LineComment) {
-            self.next();
-        }
         // check item kind
         let start = self.token.span;
         if let Some(kind) = self.parse_item_kind()? {
@@ -188,20 +186,23 @@ impl<'a> Parser<'a> {
                 break;
             }
             let start = self.token.span;
+            // parameter name
             let param_name = self
                 .token
                 .identifier(self.src)
                 .ok_or_else(ParseError::unhandled)?;
             self.next();
             self.expect(&TokenKind::Colon)?;
-            let type_name = self
-                .token
-                .identifier(self.src)
-                .ok_or_else(ParseError::unhandled)?;
+            // parameter type
+            if self.token.kind != TokenKind::Identifier {
+                return Err(ParseError::expected_token(
+                    &TokenKind::Identifier,
+                    self.token.span,
+                ));
+            }
             params.push(Param {
                 name: param_name.to_string(),
-                type_str: type_name.to_string(),
-                r#type: None,
+                r#type: Some(Type::Unchecked(self.token.span)),
                 span: start.to(&self.token.span),
             });
             self.next();
@@ -212,14 +213,15 @@ impl<'a> Parser<'a> {
         }
 
         // parse return type
-        let return_type_str = if self.eat(&TokenKind::Arrow) {
-            let rtype = self
-                .token
-                .identifier(self.src)
-                .ok_or_else(ParseError::unhandled)?;
-            self.next();
-            // TODO: change
-            Some(rtype.to_string())
+        let return_type = if self.eat(&TokenKind::Arrow) {
+            match self.token.kind {
+                TokenKind::Identifier => {
+                    let span = self.token.span;
+                    self.next();
+                    Some(span)
+                }
+                _ => None,
+            }
         } else {
             None
         };
@@ -235,8 +237,11 @@ impl<'a> Parser<'a> {
             attrs: FunctionAttributes { export },
             name: name.to_string(),
             params,
-            return_type_str,
-            return_type: None,
+            return_type: if let Some(span) = return_type {
+                Some(Type::Unchecked(span))
+            } else {
+                None
+            },
             block,
         })
     }

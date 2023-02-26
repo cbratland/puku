@@ -24,23 +24,23 @@ fn main() {
 
     // read input file
     let file_name = args.last().unwrap();
-    let mut input_str = String::new();
+    let mut src = String::new();
     let mut input_file = std::fs::File::open(file_name).expect("no file found");
     input_file
-        .read_to_string(&mut input_str)
+        .read_to_string(&mut src)
         .expect("failed to read file");
 
     // pipeline
-    let tokens = lexer::tokenize(&input_str);
+    let tokens = lexer::tokenize(&src);
     // println!("tokens: {:?}", tokens);
-    let mut ast = match parser::parse(&input_str, tokens) {
+    let mut ast = match parser::parse(&src, tokens) {
         Ok(ast) => ast,
         Err(err) => {
-            err.emit(file_name, &input_str);
+            err.emit(file_name, &src);
             return;
         }
     };
-    typechecker::check(&mut ast);
+    typechecker::check(&src, &mut ast);
     // println!("ast: {:#?}", ast);
     let module = codegen::wasm::gen_ir(ast);
 

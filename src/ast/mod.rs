@@ -19,6 +19,9 @@ pub enum BasicType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Type {
+    // span in source to type that hasn't been typechecked
+    Unchecked(Span),
+
     Unit,
     Basic(BasicType),
 }
@@ -72,6 +75,11 @@ impl Span {
             loc: self.loc + self.len as u32,
             len: (end.loc - self.loc) as u16,
         }
+    }
+
+    pub fn in_src<'a>(&self, src: &'a str) -> &'a str {
+        let loc = self.loc as usize;
+        &src[loc..loc + self.len as usize]
     }
 }
 
@@ -149,7 +157,6 @@ impl Expression {
 #[derive(Debug)]
 pub struct Param {
     pub name: String,
-    pub type_str: String,
     pub r#type: Option<Type>,
     pub span: Span,
     // pub mutable: boolean?
@@ -172,7 +179,6 @@ pub struct Function {
     pub attrs: FunctionAttributes,
     pub name: String, // todo: don't use String?
     pub params: Vec<Param>,
-    pub return_type_str: Option<String>, // todo: this is bad -- do we want spans for types in source?
     pub return_type: Option<Type>,
     pub block: Option<Block>,
 }

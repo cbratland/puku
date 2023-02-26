@@ -1,30 +1,34 @@
 use crate::ast::*;
 
-pub fn check(ast: &mut Ast) {
+pub fn check(src: &str, ast: &mut Ast) {
     let mut symbol_table = SymbolTable::new();
     for item in &mut ast.items {
-        check_item(item, &mut symbol_table);
+        check_item(src, item, &mut symbol_table);
     }
 }
 
-fn check_item(item: &mut Item, symbol_table: &mut SymbolTable) {
+fn check_item(src: &str, item: &mut Item, symbol_table: &mut SymbolTable) {
     match &mut item.kind {
         ItemKind::Function(func) => {
             // parse function return type
-            if let Some(ret_type) = &func.return_type_str {
-                let ptype = symbol_table
-                    .get(ret_type)
+            if let Some(Type::Unchecked(span)) = &func.return_type {
+                let type_str = span.in_src(src);
+                let type_val = symbol_table
+                    .get(type_str)
                     .expect("function return type is undefined")
                     .r#type;
-                func.return_type = Some(ptype);
+                func.return_type = Some(type_val);
             }
             // parse param types
             for param in &mut func.params {
-                let ptype = symbol_table
-                    .get(&param.type_str)
-                    .expect("param has undefined type")
-                    .r#type;
-                param.r#type = Some(ptype);
+                if let Some(Type::Unchecked(span)) = &param.r#type {
+                    let type_str = span.in_src(src);
+                    let type_val = symbol_table
+                        .get(type_str)
+                        .expect("function param type is undefined")
+                        .r#type;
+                    param.r#type = Some(type_val);
+                }
             }
             // typecheck block expressions
             if let Some(block) = &mut func.block {
