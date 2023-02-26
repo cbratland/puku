@@ -75,6 +75,12 @@ fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Type {
             var.r#type = Some(var_type);
             var_type
         }
+        ExpressionKind::Literal(lit) => match lit {
+            LiteralKind::Integer(_) => Type::Basic(BasicType::Int32),
+            LiteralKind::Float(_) => Type::Basic(BasicType::Float32),
+            LiteralKind::Bool(_) => Type::Basic(BasicType::Bool),
+            _ => panic!("unhandled literal kind {:?}", lit),
+        },
         _ => panic!("unhandled expression {:?}", expr),
     }
 }

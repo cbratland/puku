@@ -123,10 +123,10 @@ impl<'a> Parser<'a> {
         }
 
         if !self.eat(&TokenKind::Eof) {
-            panic!("expected eof")
+            Err(ParseError::expected_token(&TokenKind::Eof, self.token.span))
+        } else {
+            Ok(items)
         }
-
-        Ok(items)
     }
 
     // parse an item
@@ -173,7 +173,10 @@ impl<'a> Parser<'a> {
         let name = self
             .token
             .identifier(self.src)
-            .ok_or_else(ParseError::unhandled)?;
+            .ok_or(ParseError::expected_token(
+                &TokenKind::Identifier,
+                self.token.span,
+            ))?;
         self.next();
 
         // todo: generics
@@ -190,7 +193,10 @@ impl<'a> Parser<'a> {
             let param_name = self
                 .token
                 .identifier(self.src)
-                .ok_or_else(ParseError::unhandled)?;
+                .ok_or(ParseError::expected_token(
+                    &TokenKind::Identifier,
+                    self.token.span,
+                ))?;
             self.next();
             self.expect(&TokenKind::Colon)?;
             // parameter type
@@ -272,7 +278,7 @@ impl<'a> Parser<'a> {
             self.parse_return()
         } else {
             let left = self.parse_expr_unit()?;
-            if let TokenKind::BinOp(_) = self.token.kind {
+            if self.token.is_bin_op() {
                 self.parse_binary_expr(left)
             } else {
                 Ok(Some(left))
@@ -288,10 +294,17 @@ impl<'a> Parser<'a> {
             let name = self
                 .token
                 .identifier(self.src)
-                .ok_or_else(ParseError::unhandled)?;
+                .ok_or(ParseError::expected_token(
+                    &TokenKind::Identifier,
+                    self.token.span,
+                ))?;
+            let result = match name {
+                "true" => Expression::literal(ast::LiteralKind::Bool(true), self.token.span),
+                "false" => Expression::literal(ast::LiteralKind::Bool(false), self.token.span),
+                _ => Expression::var(name.to_string(), self.token.span),
+            };
             self.next();
-            let variable = Expression::var(name.to_string(), self.token.span);
-            Ok(variable)
+            Ok(result)
         } else if let TokenKind::Literal(kind) = &self.token.kind {
             let lit = self.token.as_str(self.src);
             let lit = match kind {
@@ -301,7 +314,15 @@ impl<'a> Parser<'a> {
                     if let Ok(int) = lit.parse::<i32>() {
                         Expression::literal(ast::LiteralKind::Integer(int), self.token.span)
                     } else {
-                        panic!("invalid")
+                        panic!("invalid int {lit}")
+                    }
+                }
+                LiteralKind::Float => {
+                    // parse integer literal
+                    if let Ok(float) = lit.parse::<f32>() {
+                        Expression::literal(ast::LiteralKind::Float(float), self.token.span)
+                    } else {
+                        panic!("invalid float {lit}")
                     }
                 }
                 _ => panic!("unknown literal: {}", lit),
@@ -328,13 +349,29 @@ impl<'a> Parser<'a> {
     pub fn parse_binary_expr(&mut self, left: Expression) -> Result<Option<Expression>> {
         let mut op_stack: Vec<(BinaryOperator, u8)> = vec![];
         let mut expr_stack = vec![left];
-        while let TokenKind::BinOp(op) = &self.token.kind {
-            let operator = match op {
-                BinOpToken::Plus => BinaryOperator::Add,
-                BinOpToken::Minus => BinaryOperator::Sub,
-                BinOpToken::Star => BinaryOperator::Mul,
-                BinOpToken::Slash => BinaryOperator::Div,
-                _ => todo!(),
+        while self.token.is_bin_op() {
+            let operator = match &self.token.kind {
+                TokenKind::BinOp(op) => match op {
+                    BinOpToken::Plus => BinaryOperator::Add,
+                    BinOpToken::Minus => BinaryOperator::Sub,
+                    BinOpToken::Star => BinaryOperator::Mul,
+                    BinOpToken::Slash => BinaryOperator::Div,
+                    BinOpToken::Percent => BinaryOperator::Mod,
+                    BinOpToken::Caret => BinaryOperator::Caret,
+                    BinOpToken::And => BinaryOperator::And,
+                    BinOpToken::Pipe => BinaryOperator::Or,
+                    BinOpToken::ShiftLeft => BinaryOperator::ShiftLeft,
+                    BinOpToken::ShiftRight => BinaryOperator::ShiftRight,
+                },
+                TokenKind::LThan => BinaryOperator::Less,
+                TokenKind::LThanEqual => BinaryOperator::LessOrEqual,
+                TokenKind::GThan => BinaryOperator::Greater,
+                TokenKind::GThanEqual => BinaryOperator::GreaterOrEqual,
+                TokenKind::EqualEqual => BinaryOperator::EqualEqual,
+                TokenKind::NotEqual => BinaryOperator::NotEqual,
+                TokenKind::AndAnd => BinaryOperator::AndAnd,
+                TokenKind::PipePipe => BinaryOperator::OrOr,
+                _ => panic!("unknown binop {:?}", self.token.kind),
             };
             self.next();
             let precendence = operator.precedence();

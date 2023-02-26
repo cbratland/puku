@@ -201,25 +201,35 @@ pub enum BinaryOperator {
     Sub,
     Mul,
     Div,
+    Mod,
     Less,
     LessOrEqual,
     Greater,
     GreaterOrEqual,
-    Equal,
+    EqualEqual,
     NotEqual,
     And,
     Or,
+    Caret,
+    AndAnd,
+    OrOr,
+    ShiftLeft,
+    ShiftRight,
 }
 
 impl BinaryOperator {
     pub fn precedence(&self) -> u8 {
         match self {
-            Self::Or => 1,
-            Self::And => 2,
-            Self::Equal | Self::NotEqual => 3,
-            Self::Less | Self::LessOrEqual | Self::Greater | Self::GreaterOrEqual => 4,
-            Self::Add | Self::Sub => 5,
-            Self::Mul | Self::Div => 6,
+            Self::OrOr => 1,
+            Self::AndAnd => 2,
+            Self::Or => 3,
+            Self::Caret => 4,
+            Self::And => 5,
+            Self::EqualEqual | Self::NotEqual => 6,
+            Self::Less | Self::LessOrEqual | Self::Greater | Self::GreaterOrEqual => 7,
+            Self::ShiftLeft | Self::ShiftRight => 8,
+            Self::Add | Self::Sub => 9,
+            Self::Mul | Self::Div | Self::Mod => 10,
         }
     }
 }

@@ -213,11 +213,12 @@ impl<'a> Lexer<'a> {
                 c if c.is_numeric() => {
                     let mut kind = LiteralKind::Integer;
                     loop {
-                        match self.next().unwrap_or(' ') {
-                            c if c.is_numeric() => continue,
+                        match self.peek() {
+                            c if c.is_numeric() => (),
                             '.' => kind = LiteralKind::Float,
                             _ => break,
-                        }
+                        };
+                        self.next();
                     }
                     TokenKind::Literal(kind)
                 }

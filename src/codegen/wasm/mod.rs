@@ -65,6 +65,9 @@ fn type_to_wasm(ast_type: &ast::Type) -> Valtype {
             ast::BasicType::Int64 => Valtype::I64,
             ast::BasicType::Float32 => Valtype::F32,
             ast::BasicType::Float64 => Valtype::F64,
+
+            ast::BasicType::Bool => Valtype::I32,
+
             _ => panic!("unknown basic type {:?}", basic),
         },
         _ => panic!("unknown type {:?}", ast_type),
@@ -116,17 +119,21 @@ fn gen_expr_code<W: std::io::Write>(
                 .write_all(&[match op.operator {
                     BinaryOperator::Add => match wasm_type {
                         Valtype::I32 => Opcode::I32Add,
-                        // Valtype::I64 => Opcode::I64Add,
-                        // Valtype::F32 => Opcode::F32Add,
+                        Valtype::I64 => Opcode::I64Add,
+                        Valtype::F32 => Opcode::F32Add,
                         // Valtype::F64 => Opcode::F64Add,
                         _ => panic!("unknown type {:?}", op.r#type),
                     },
                     BinaryOperator::Sub => match wasm_type {
                         Valtype::I32 => Opcode::I32Sub,
+                        Valtype::I64 => Opcode::I64Sub,
+                        Valtype::F32 => Opcode::F32Sub,
                         _ => panic!("unknown type {:?}", op.r#type),
                     },
                     BinaryOperator::Mul => match wasm_type {
                         Valtype::I32 => Opcode::I32Mul,
+                        Valtype::I64 => Opcode::I64Mul,
+                        Valtype::F32 => Opcode::F32Mul,
                         _ => panic!("unknown type {:?}", op.r#type),
                     },
                     _ => todo!(),
@@ -138,7 +145,15 @@ fn gen_expr_code<W: std::io::Write>(
                 buffer.write_all(&[Opcode::I32Const as u8]).unwrap();
                 leb128::write::signed(buffer, *int as i64).unwrap();
             }
-            _ => todo!(),
+            ast::LiteralKind::Float(float) => {
+                buffer.write_all(&[Opcode::F32Const as u8]).unwrap();
+                buffer.write_all(&float.to_le_bytes()).unwrap();
+            }
+            ast::LiteralKind::Bool(bool) => {
+                buffer.write_all(&[Opcode::I32Const as u8]).unwrap();
+                leb128::write::signed(buffer, if *bool { 1 } else { 0 }).unwrap();
+            }
+            _ => panic!("unhandled literal"),
         },
         _ => todo!(),
     }

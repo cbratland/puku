@@ -64,26 +64,22 @@ pub struct Token {
 }
 
 impl Token {
-    // pub fn is_op(&self) -> bool {
-    //     use TokenKind::*;
-    //     matches!(
-    //         self.kind,
-    //         Equal
-    //             | LThan
-    //             | LThanEqual
-    //             | EqualEqual
-    //             | NotEqual
-    //             | GThanEqual
-    //             | GThan
-    //             | AndAnd
-    //             | PipePipe
-    //             | Exclamation
-    //             | BinOp(_)
-    //             | BinOpEqual(_)
-    //             | Comma
-    //             | Colon
-    //     )
-    // }
+    pub fn is_bin_op(&self) -> bool {
+        use TokenKind::*;
+        matches!(
+            self.kind,
+            Equal
+                | LThan
+                | LThanEqual
+                | EqualEqual
+                | NotEqual
+                | GThanEqual
+                | GThan
+                | AndAnd
+                | PipePipe
+                | BinOp(_)
+        )
+    }
 
     pub fn is_comment(&self) -> bool {
         use TokenKind::*;
