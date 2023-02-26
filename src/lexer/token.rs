@@ -1,6 +1,6 @@
 use crate::ast::Span;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BinOpToken {
     Plus,       // +
     Minus,      // -
@@ -14,14 +14,14 @@ pub enum BinOpToken {
     ShiftRight, // >>
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Delimiter {
     Parenthesis, // ()
     Brace,       // []
     Bracket,     // {}
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
     Equal,       // =
     EqualEqual,  // ==

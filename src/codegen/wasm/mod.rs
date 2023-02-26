@@ -16,10 +16,7 @@ pub fn gen_ir<'a>(ast: ast::Ast) -> Module {
     let mut exports: Vec<ir::Export> = vec![];
 
     for function in ast.items {
-        let function = match (*function).kind {
-            ItemKind::Function(func) => func,
-            // _ => continue,
-        };
+        let ItemKind::Function(function) = function.kind;
         let func_type = ir::Type {
             params: function
                 .params
@@ -107,7 +104,7 @@ fn gen_expr_code<W: std::io::Write>(
         }
         ExpressionKind::Return(expr) => {
             if let Some(expr) = expr {
-                gen_expr_code(buffer, &expr, locals);
+                gen_expr_code(buffer, expr, locals);
                 buffer.write_all(&[Opcode::Return as u8]).unwrap();
             }
         }

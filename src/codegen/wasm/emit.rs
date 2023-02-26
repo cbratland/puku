@@ -92,7 +92,7 @@ pub fn emit<W: std::io::Write + std::io::Seek>(
                         emit_limits(buffer, &table.limits)?;
                     }
                     ImportKind::Memory(limits) => {
-                        emit_limits(buffer, &limits)?;
+                        emit_limits(buffer, limits)?;
                     }
                 };
             }

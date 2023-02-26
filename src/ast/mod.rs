@@ -106,11 +106,7 @@ pub struct Expression {
 impl Expression {
     pub fn ret(expr: Option<Expression>, span: Span) -> Self {
         Self {
-            kind: ExpressionKind::Return(if let Some(expr) = expr {
-                Some(Box::new(expr))
-            } else {
-                None
-            }),
+            kind: ExpressionKind::Return(expr.map(Box::new)),
             span,
         }
     }
@@ -249,5 +245,5 @@ pub struct Item {
 
 #[derive(Debug)]
 pub struct Ast {
-    pub items: Vec<Box<Item>>,
+    pub items: Vec<Item>,
 }

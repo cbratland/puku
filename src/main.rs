@@ -11,8 +11,6 @@ mod lexer;
 mod parser;
 mod typechecker;
 
-use parser::ParseError;
-
 fn usage() -> ! {
     eprintln!("Usage: wasmlangc <file>");
     process::exit(1)
@@ -38,17 +36,7 @@ fn main() {
     let mut ast = match parser::parse(&input_str, tokens) {
         Ok(ast) => ast,
         Err(err) => {
-            match err {
-                ParseError::Unhandled => eprintln!("unhandled parser error!"),
-                ParseError::UnexpectedToken(span) => {
-                    let loc = span.loc as usize;
-                    let source_up_to = &input_str[..loc];
-                    let line = bytecount::count(source_up_to.as_bytes(), b'\n') + 1;
-                    let col = loc - source_up_to.rfind('\n').unwrap_or(0);
-                    let culprit = &input_str[loc..loc + span.len as usize];
-                    eprintln!("{file_name}:{line}:{col}: unexpected token `{culprit}`");
-                }
-            }
+            err.emit(file_name, &input_str);
             return;
         }
     };

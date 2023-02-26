@@ -194,7 +194,7 @@ pub fn tokenize<'a>(src: &'a str) -> Vec<Token> {
             break;
         }
     }
-    return tokens;
+    tokens
 
     // let tokens = vec![
     //     Token::new(TokenKind::Keyword(String::from("export")), 0),

@@ -4,16 +4,12 @@ pub mod keyword;
 #[cfg(test)]
 mod tests;
 
-use std::cmp::Ordering;
+mod error;
 
 use crate::ast::*;
 use crate::lexer::{BinOpToken, Delimiter, Token, TokenKind};
-
-#[derive(Debug)]
-pub enum ParseError {
-    Unhandled,
-    UnexpectedToken(Span),
-}
+pub use error::*;
+use std::cmp::Ordering;
 
 type Result<T> = std::result::Result<T, ParseError>;
 
@@ -108,7 +104,7 @@ impl<'a> Parser<'a> {
         if self.eat(token) {
             Ok(())
         } else {
-            Err(ParseError::Unhandled)
+            Err(ParseError::expected_token(token, self.token.span))
         }
     }
 }
@@ -116,7 +112,7 @@ impl<'a> Parser<'a> {
 // item parsing
 impl<'a> Parser<'a> {
     // parse all items in the token stream
-    pub fn parse_items(&mut self) -> Result<Vec<Box<Item>>> {
+    pub fn parse_items(&mut self) -> Result<Vec<Item>> {
         let mut items = vec![];
 
         while let Some(item) = self.parse_item()? {
@@ -131,7 +127,7 @@ impl<'a> Parser<'a> {
     }
 
     // parse an item
-    pub fn parse_item(&mut self) -> Result<Option<Box<Item>>> {
+    pub fn parse_item(&mut self) -> Result<Option<Item>> {
         // skip comments
         // todo: comments need to be skipped everywhere
         while self.check(&TokenKind::LineComment) {
@@ -140,10 +136,10 @@ impl<'a> Parser<'a> {
         // check item kind
         let start = self.token.span;
         if let Some(kind) = self.parse_item_kind()? {
-            Ok(Some(Box::new(Item {
+            Ok(Some(Item {
                 kind,
                 span: start.until(&self.token.span),
-            })))
+            }))
         } else {
             Ok(None)
         }
@@ -172,14 +168,14 @@ impl<'a> Parser<'a> {
         // todo: import
 
         if !self.eat_keyword(keyword::Func) {
-            return Err(ParseError::Unhandled);
+            return Err(ParseError::unhandled());
         }
 
         // parse name
         let name = self
             .token
             .identifier(self.src)
-            .ok_or(ParseError::Unhandled)?;
+            .ok_or_else(ParseError::unhandled)?;
         self.next();
 
         // todo: generics
@@ -195,13 +191,13 @@ impl<'a> Parser<'a> {
             let param_name = self
                 .token
                 .identifier(self.src)
-                .ok_or(ParseError::Unhandled)?;
+                .ok_or_else(ParseError::unhandled)?;
             self.next();
             self.expect(&TokenKind::Colon)?;
             let type_name = self
                 .token
                 .identifier(self.src)
-                .ok_or(ParseError::Unhandled)?;
+                .ok_or_else(ParseError::unhandled)?;
             params.push(Param {
                 name: param_name.to_string(),
                 type_str: type_name.to_string(),
@@ -210,7 +206,9 @@ impl<'a> Parser<'a> {
             });
             self.next();
 
-            _ = self.eat(&TokenKind::Comma);
+            if !self.check(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
+                self.expect(&TokenKind::Comma)?;
+            }
         }
 
         // parse return type
@@ -218,7 +216,7 @@ impl<'a> Parser<'a> {
             let rtype = self
                 .token
                 .identifier(self.src)
-                .ok_or(ParseError::Unhandled)?;
+                .ok_or_else(ParseError::unhandled)?;
             self.next();
             // TODO: change
             Some(rtype.to_string())
@@ -244,15 +242,12 @@ impl<'a> Parser<'a> {
     }
 
     // parse a block of expressions
-    // { [exprs] }
+    // { [expr]* }
     fn parse_block(&mut self) -> Result<Block> {
         let start = self.token.span;
         self.expect(&TokenKind::OpenDelimiter(Delimiter::Bracket))?;
         let mut expressions: Vec<Expression> = vec![];
-        loop {
-            if self.eat(&TokenKind::CloseDelimiter(Delimiter::Bracket)) {
-                break;
-            }
+        while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Bracket)) {
             if let Some(expr) = self.parse_expr()? {
                 expressions.push(expr);
             }
@@ -267,36 +262,34 @@ impl<'a> Parser<'a> {
 // expression parsing
 impl<'a> Parser<'a> {
     pub fn parse_expr(&mut self) -> Result<Option<Expression>> {
-        let left = self.parse_expr_unit()?;
-        if let Some(left) = left {
+        if self.check_keyword(keyword::Return) {
+            // return [expr]
+            self.parse_return()
+        } else {
+            let left = self.parse_expr_unit()?;
             if let TokenKind::BinOp(_) = self.token.kind {
                 self.parse_binary_expr(left)
             } else {
                 Ok(Some(left))
             }
-        } else {
-            Err(ParseError::Unhandled)
         }
     }
 
-    pub fn parse_expr_unit(&mut self) -> Result<Option<Expression>> {
-        // return [expr]
-        if self.check_keyword(keyword::Return) {
-            // println!("return");
-            self.parse_return()
-        } else if self.check(&TokenKind::Identifier) {
+    // parse stuff that could be added together in a binary expression
+    pub fn parse_expr_unit(&mut self) -> Result<Expression> {
+        if self.check(&TokenKind::Identifier) {
             // [variable]
             // println!("identifier");
             let name = self
                 .token
                 .identifier(self.src)
-                .ok_or(ParseError::Unhandled)?;
+                .ok_or_else(ParseError::unhandled)?;
             self.next();
             let variable = Expression::var(name.to_string(), self.token.span);
-            Ok(Some(variable))
+            Ok(variable)
         } else if self.check(&TokenKind::Literal) {
             let lit = self.token.as_str(self.src);
-            let lit = if lit.starts_with("\"") && lit.ends_with("\"") {
+            let lit = if lit.starts_with('"') && lit.ends_with('"') {
                 // parse string literal
                 panic!("todo: parse string literal");
             } else if let Ok(int) = lit.parse::<i32>() {
@@ -306,9 +299,9 @@ impl<'a> Parser<'a> {
                 panic!("unknown literal: {}", lit);
             };
             self.next();
-            Ok(Some(lit))
+            Ok(lit)
         } else {
-            Err(ParseError::UnexpectedToken(self.token.span))
+            Err(ParseError::expected_expression(self.token.span))
         }
     }
 
@@ -316,7 +309,7 @@ impl<'a> Parser<'a> {
     pub fn parse_return(&mut self) -> Result<Option<Expression>> {
         let start = self.token.span;
         if !self.eat_keyword(keyword::Return) {
-            return Err(ParseError::UnexpectedToken(start));
+            return Err(ParseError::expected_keyword(keyword::Return, start));
         }
         let expr = self.parse_expr()?;
         Ok(Some(Expression::ret(expr, start.to(&self.token.span))))
@@ -327,17 +320,13 @@ impl<'a> Parser<'a> {
     pub fn parse_binary_expr(&mut self, left: Expression) -> Result<Option<Expression>> {
         let mut op_stack: Vec<(BinaryOperator, u8)> = vec![];
         let mut expr_stack = vec![left];
-        loop {
-            let operator = if let TokenKind::BinOp(op) = &self.token.kind {
-                match op {
-                    BinOpToken::Plus => BinaryOperator::Add,
-                    BinOpToken::Minus => BinaryOperator::Sub,
-                    BinOpToken::Star => BinaryOperator::Mul,
-                    BinOpToken::Slash => BinaryOperator::Div,
-                    _ => todo!(),
-                }
-            } else {
-                break;
+        while let TokenKind::BinOp(op) = &self.token.kind {
+            let operator = match op {
+                BinOpToken::Plus => BinaryOperator::Add,
+                BinOpToken::Minus => BinaryOperator::Sub,
+                BinOpToken::Star => BinaryOperator::Mul,
+                BinOpToken::Slash => BinaryOperator::Div,
+                _ => todo!(),
             };
             self.next();
             let precendence = operator.precedence();
@@ -347,7 +336,7 @@ impl<'a> Parser<'a> {
                 &mut expr_stack,
             );
 
-            let right = self.parse_expr_unit()?.ok_or(ParseError::Unhandled)?;
+            let right = self.parse_expr_unit()?;
             expr_stack.push(right);
         }
 
