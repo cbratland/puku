@@ -203,6 +203,28 @@ fn gen_expr_code<W: std::io::Write>(
                     .unwrap();
             }
         },
+        ExpressionKind::If(if_expr) => {
+            gen_expr_code(buffer, &if_expr.cond, locals);
+            buffer.write_all(&[Opcode::If as u8, 0x40]).unwrap();
+            // buffer
+            //     .write_all(&[Opcode::I32Eqz as u8, Opcode::BrIf as u8])
+            //     .unwrap();
+            // leb128::write::signed(buffer, 0).unwrap();
+            // gen_expr_code(buffer, &if_expr.cond, locals);
+            for expr in &if_expr.then_branch.expressions {
+                gen_expr_code(buffer, expr, locals);
+            }
+            if let Some(else_branch) = &if_expr.else_branch {
+                buffer.write_all(&[Opcode::Else as u8]).unwrap();
+                gen_expr_code(buffer, &else_branch, locals);
+            }
+            buffer.write_all(&[Opcode::End as u8]).unwrap();
+        }
+        ExpressionKind::Block(block) => {
+            for expr in &block.expressions {
+                gen_expr_code(buffer, expr, locals);
+            }
+        }
         _ => panic!("unhandled expression {:?}", expression.kind),
     }
 }

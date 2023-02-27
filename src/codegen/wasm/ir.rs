@@ -157,7 +157,13 @@ impl Default for Module {
 
 #[repr(u8)]
 pub enum Opcode {
+    Block = 0x02,
+    Loop = 0x03,
+    If = 0x04,
+    Else = 0x05,
     End = 0x0B,
+    Br = 0x0C,
+    BrIf = 0x0D,
     Return = 0x0F,
     LocalGet = 0x20,
     LocalSet = 0x21,

@@ -110,6 +110,15 @@ impl<'a> Parser<'a> {
             Err(ParseError::expected_token(token, self.token.span))
         }
     }
+
+    // eat a keyword and error if it fails
+    pub fn expect_keyword(&mut self, keyword: &str) -> Result<()> {
+        if self.eat_keyword(keyword) {
+            Ok(())
+        } else {
+            Err(ParseError::expected_keyword(keyword, self.token.span))
+        }
+    }
 }
 
 // item parsing
@@ -276,7 +285,9 @@ impl<'a> Parser<'a> {
 
     // parse stuff that could be added together in a binary expression
     pub fn parse_expr_unit(&mut self) -> Result<Expression> {
-        if matches!(
+        if self.check_keyword(keyword::If) {
+            self.parse_if_expr()
+        } else if matches!(
             self.token.kind,
             TokenKind::BinOp(BinOpToken::Minus)
                 | TokenKind::BinOp(BinOpToken::Plus)
@@ -453,6 +464,28 @@ impl<'a> Parser<'a> {
             }
             _ => panic!("need 2 exprs to reduce"),
         }
+    }
+
+    pub fn parse_if_expr(&mut self) -> Result<Expression> {
+        let start = self.token.span;
+        self.expect_keyword(keyword::If)?;
+        let cond = self.parse_expr()?;
+        let then_branch = self.parse_block()?;
+        let else_branch = if self.eat_keyword(keyword::Else) {
+            Some(if self.check_keyword(keyword::If) {
+                self.parse_if_expr()?
+            } else {
+                Expression::block(self.parse_block()?)
+            })
+        } else {
+            None
+        };
+        Ok(Expression::if_expr(
+            cond,
+            then_branch,
+            else_branch,
+            start.until(&self.token.span),
+        ))
     }
 }
 

@@ -5,3 +5,8 @@ pub const Import: &str = "import";
 pub const Func: &str = "func";
 
 pub const Return: &str = "return";
+// pub const Continue: &str = "continue";
+// pub const Break: &str = "break";
+
+pub const If: &str = "if";
+pub const Else: &str = "else";

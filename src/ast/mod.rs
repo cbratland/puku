@@ -94,6 +94,7 @@ pub enum ExpressionKind {
     // Call(Box<Expression>, Vec<Box<Expression>>),
     // for/for n/for in
     // if
+    If(Box<If>),
     // (expr)
     Group(Box<Expression>),
     // binary op `x + 3`, etc.
@@ -171,12 +172,30 @@ impl Expression {
         }
     }
 
-    // pub fn block(block: Block) -> Self {
-    //     Self {
-    //         kind: ExpressionKind::Block(block),
-    //         span: block.span,
-    //     }
-    // }
+    pub fn if_expr(
+        cond: Expression,
+        then_branch: Block,
+        else_branch: Option<Expression>,
+        span: Span,
+    ) -> Self {
+        Self {
+            kind: ExpressionKind::If(Box::new(If {
+                cond,
+                then_branch,
+                else_branch,
+                span,
+            })),
+            span,
+        }
+    }
+
+    pub fn block(block: Block) -> Self {
+        let span = block.span;
+        Self {
+            kind: ExpressionKind::Block(block),
+            span,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -285,6 +304,14 @@ pub struct UnaryOperation {
 pub struct Assignment {
     pub left: Expression,
     pub right: Expression,
+}
+
+#[derive(Debug)]
+pub struct If {
+    pub cond: Expression,
+    pub then_branch: Block,
+    pub else_branch: Option<Expression>, // todo: prob make this only if or block
+    pub span: Span,
 }
 
 #[derive(Debug)]

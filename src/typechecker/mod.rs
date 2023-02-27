@@ -49,6 +49,14 @@ fn check_item(src: &str, item: &mut Item, symbol_table: &mut SymbolTable) {
     };
 }
 
+fn check_block(block: &mut Block, symbol_table: &mut SymbolTable) {
+    symbol_table.push_scope();
+    for expr in &mut block.expressions {
+        check_expr(expr, symbol_table);
+    }
+    symbol_table.pop_scope();
+}
+
 fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Type {
     match &mut expr.kind {
         ExpressionKind::Return(ret) => {
@@ -86,9 +94,25 @@ fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Type {
             let utype = check_expr(&mut op.expr, symbol_table);
             op.r#type = Some(utype);
             if op.operator == UnaryOperator::Not && utype != Type::Basic(BasicType::Bool) {
-                panic!("unary not (!) should only be used on a boolean expression")
+                panic!("unary not (!) should only be used on a boolean expression");
             }
             utype
+        }
+        ExpressionKind::If(if_expr) => {
+            let cond_type = check_expr(&mut if_expr.cond, symbol_table);
+            if cond_type != Type::Basic(BasicType::Bool) {
+                panic!("if condition must be boolean expression");
+            }
+            check_block(&mut if_expr.then_branch, symbol_table);
+            if let Some(else_branch) = &mut if_expr.else_branch {
+                check_expr(else_branch, symbol_table);
+            }
+            // todo: allow ifs to evaluate to a type
+            Type::Unit
+        }
+        ExpressionKind::Block(block) => {
+            check_block(block, symbol_table);
+            Type::Unit
         }
         _ => panic!("unhandled expression {:?}", expr),
     }

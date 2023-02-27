@@ -223,7 +223,7 @@ impl<'a> Lexer<'a> {
                     TokenKind::Literal(kind)
                 }
 
-                _ => panic!("unknown token"),
+                _ => panic!("unknown token {}", first_char),
             };
             let token_len = self.moved_len();
             let loc = self.loc;
