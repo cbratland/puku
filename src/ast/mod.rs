@@ -26,13 +26,13 @@ pub enum Type {
     Basic(BasicType),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Variable {
     pub name: String,
     pub r#type: Option<Type>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LiteralKind {
     Bool(bool),
     Char(char),
@@ -83,7 +83,7 @@ impl Span {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ExpressionKind {
     Return(Option<Box<Expression>>),
     // assign `x = a`
@@ -109,7 +109,7 @@ pub enum ExpressionKind {
     Variable(Variable),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Expression {
     pub kind: ExpressionKind,
     pub span: Span,
@@ -198,7 +198,7 @@ impl Expression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Param {
     pub name: String,
     pub r#type: Option<Type>,
@@ -206,19 +206,19 @@ pub struct Param {
     // pub mutable: boolean?
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Export {
     None,
     Implicit,         // export
     Explicit(String), // export("whatever")
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct FunctionAttributes {
     pub export: Export,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Function {
     pub attrs: FunctionAttributes,
     pub name: String, // todo: don't use String?
@@ -227,19 +227,19 @@ pub struct Function {
     pub block: Option<Block>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Block {
     pub expressions: Vec<Expression>,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FunctionCall {
     pub name: String,
     pub args: Vec<Expression>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOperator {
     Add,
     Sub,
@@ -278,7 +278,7 @@ impl BinaryOperator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct BinaryOperation {
     pub left: Expression,
     pub right: Expression,
@@ -293,20 +293,20 @@ pub enum UnaryOperator {
     Not,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct UnaryOperation {
     pub expr: Expression,
     pub operator: UnaryOperator,
     pub r#type: Option<Type>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Assignment {
     pub left: Expression,
     pub right: Expression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct If {
     pub cond: Expression,
     pub then_branch: Block,
@@ -314,18 +314,18 @@ pub struct If {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ItemKind {
     Function(Box<Function>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Item {
     pub kind: ItemKind,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Ast {
     pub items: Vec<Item>,
 }

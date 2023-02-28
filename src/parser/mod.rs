@@ -145,7 +145,7 @@ impl<'a> Parser<'a> {
         if let Some(kind) = self.parse_item_kind()? {
             Ok(Some(Item {
                 kind,
-                span: start.until(&self.token.span),
+                span: start.to(&self.prev_token.span),
             }))
         } else {
             Ok(None)
@@ -261,7 +261,7 @@ impl<'a> Parser<'a> {
         }
         Ok(Block {
             expressions,
-            span: start.until(&self.token.span),
+            span: start.to(&self.prev_token.span),
         })
     }
 }
@@ -308,7 +308,7 @@ impl<'a> Parser<'a> {
             let start = self.token.span;
             self.eat(&TokenKind::OpenDelimiter(Delimiter::Parenthesis));
             let expr = self.parse_expr()?;
-            let span = start.until(&self.token.span);
+            let span = start.to(&self.token.span);
             self.expect(&TokenKind::CloseDelimiter(Delimiter::Parenthesis))?;
             Ok(Expression::group(expr, span))
         } else if self.check(&TokenKind::Identifier) {
@@ -484,7 +484,7 @@ impl<'a> Parser<'a> {
             cond,
             then_branch,
             else_branch,
-            start.until(&self.token.span),
+            start.to(&self.prev_token.span),
         ))
     }
 }
