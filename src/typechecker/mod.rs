@@ -1,33 +1,59 @@
 use crate::ast::*;
 
-pub fn check(src: &str, ast: &mut Ast) {
-    let mut symbol_table = SymbolTable::new();
-    for item in &mut ast.items {
-        check_item(src, item, &mut symbol_table);
+use crate::parser::ErrorLevel;
+use crate::parser::ParseError;
+
+type Result<T> = std::result::Result<T, ParseError>;
+
+impl ParseError {
+    pub fn mismatched(expected: Type, span: Span) -> Self {
+        Self {
+            level: ErrorLevel::Error,
+            message: format!("mismatched types (expected {:?})", expected),
+            span: Some(span),
+        }
+    }
+
+    pub fn notfound(typ: &str, span: Span) -> Self {
+        Self {
+            level: ErrorLevel::Error,
+            message: format!("cannot find type `{}` in this scope", typ),
+            span: Some(span),
+        }
     }
 }
 
-fn check_item(src: &str, item: &mut Item, symbol_table: &mut SymbolTable) {
+pub fn check(src: &str, ast: &mut Ast) -> Result<()> {
+    let mut symbol_table = SymbolTable::new();
+    for item in &mut ast.items {
+        check_item(src, item, &mut symbol_table)?;
+    }
+    Ok(())
+}
+
+fn get_type(symbol_table: &SymbolTable, src: &str, span: Span) -> Result<Type> {
+    let type_str = span.in_src(src);
+    get_type_from_name(symbol_table, type_str, span)
+}
+
+fn get_type_from_name(symbol_table: &SymbolTable, name: &str, span: Span) -> Result<Type> {
+    match symbol_table.get(name) {
+        Some(sym) => Ok(sym.r#type),
+        None => Err(ParseError::notfound(name, span)),
+    }
+}
+
+fn check_item(src: &str, item: &mut Item, symbol_table: &mut SymbolTable) -> Result<()> {
     match &mut item.kind {
         ItemKind::Function(func) => {
             // parse function return type
             if let Some(Type::Unchecked(span)) = &func.return_type {
-                let type_str = span.in_src(src);
-                let type_val = symbol_table
-                    .get(type_str)
-                    .expect("function return type is undefined")
-                    .r#type;
-                func.return_type = Some(type_val);
+                func.return_type = Some(get_type(symbol_table, src, *span)?);
             }
             // parse param types
             for param in &mut func.params {
                 if let Some(Type::Unchecked(span)) = &param.r#type {
-                    let type_str = span.in_src(src);
-                    let type_val = symbol_table
-                        .get(type_str)
-                        .expect("function param type is undefined")
-                        .r#type;
-                    param.r#type = Some(type_val);
+                    param.r#type = Some(get_type(symbol_table, src, *span)?);
                 }
             }
             // typecheck block expressions
@@ -37,49 +63,51 @@ fn check_item(src: &str, item: &mut Item, symbol_table: &mut SymbolTable) {
                 for param in &mut func.params {
                     symbol_table.insert(
                         &param.name,
-                        Symbol::var(param.name.clone(), param.r#type.unwrap()),
+                        Symbol::var(
+                            param.name.clone(),
+                            param.r#type.expect("param type not filled in"),
+                        ),
                     );
                 }
                 for expr in &mut block.expressions {
-                    check_expr(expr, symbol_table);
+                    check_expr(expr, symbol_table)?;
                 }
                 symbol_table.pop_scope();
             }
         }
     };
+    Ok(())
 }
 
-fn check_block(block: &mut Block, symbol_table: &mut SymbolTable) {
+fn check_block(block: &mut Block, symbol_table: &mut SymbolTable) -> Result<()> {
     symbol_table.push_scope();
     for expr in &mut block.expressions {
-        check_expr(expr, symbol_table);
+        check_expr(expr, symbol_table)?;
     }
     symbol_table.pop_scope();
+    Ok(())
 }
 
-fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Type {
-    match &mut expr.kind {
+pub fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Result<Type> {
+    Ok(match &mut expr.kind {
         ExpressionKind::Return(ret) => {
             if let Some(expr) = ret {
-                check_expr(expr, symbol_table);
+                check_expr(expr, symbol_table)?;
             }
             Type::Unit
         }
         ExpressionKind::BinOp(op) => {
-            let left = check_expr(&mut op.left, symbol_table);
-            let right = check_expr(&mut op.right, symbol_table);
+            let left = check_expr(&mut op.left, symbol_table)?;
+            let right = check_expr(&mut op.right, symbol_table)?;
             if left == right {
                 op.r#type = Some(left);
             } else {
-                panic!("bin op types don't match")
+                return Err(ParseError::mismatched(left, op.right.span));
             }
             left
         }
         ExpressionKind::Variable(var) => {
-            let var_type = symbol_table
-                .get(&var.name)
-                .expect("variable not defined")
-                .r#type;
+            let var_type = get_type_from_name(symbol_table, &var.name, expr.span)?;
             var.r#type = Some(var_type);
             var_type
         }
@@ -89,31 +117,37 @@ fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Type {
             LiteralKind::Bool(_) => Type::Basic(BasicType::Bool),
             _ => panic!("unhandled literal kind {:?}", lit),
         },
-        ExpressionKind::Group(expr) => check_expr(expr, symbol_table),
+        ExpressionKind::Group(expr) => check_expr(expr, symbol_table)?,
         ExpressionKind::UnaryOp(op) => {
-            let utype = check_expr(&mut op.expr, symbol_table);
+            let utype = check_expr(&mut op.expr, symbol_table)?;
             op.r#type = Some(utype);
             if op.operator == UnaryOperator::Not && utype != Type::Basic(BasicType::Bool) {
-                panic!("unary not (!) should only be used on a boolean expression");
+                return Err(ParseError::mismatched(
+                    Type::Basic(BasicType::Bool),
+                    op.expr.span,
+                ));
             }
             utype
         }
         ExpressionKind::If(if_expr) => {
-            let cond_type = check_expr(&mut if_expr.cond, symbol_table);
+            let cond_type = check_expr(&mut if_expr.cond, symbol_table)?;
             if cond_type != Type::Basic(BasicType::Bool) {
-                panic!("if condition must be boolean expression");
+                return Err(ParseError::mismatched(
+                    Type::Basic(BasicType::Bool),
+                    if_expr.cond.span,
+                ));
             }
-            check_block(&mut if_expr.then_branch, symbol_table);
+            check_block(&mut if_expr.then_branch, symbol_table)?;
             if let Some(else_branch) = &mut if_expr.else_branch {
-                check_expr(else_branch, symbol_table);
+                check_expr(else_branch, symbol_table)?;
             }
             // todo: allow ifs to evaluate to a type
             Type::Unit
         }
         ExpressionKind::Block(block) => {
-            check_block(block, symbol_table);
+            check_block(block, symbol_table)?;
             Type::Unit
         }
         _ => panic!("unhandled expression {:?}", expr),
-    }
+    })
 }

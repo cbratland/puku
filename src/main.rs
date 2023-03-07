@@ -40,7 +40,10 @@ fn main() {
             return;
         }
     };
-    typechecker::check(&src, &mut ast);
+    if let Err(type_error) = typechecker::check(&src, &mut ast) {
+        type_error.emit(file_name, &src);
+        return;
+    }
     // println!("ast: {:#?}", ast);
     let module = codegen::wasm::gen_ir(ast);
 
