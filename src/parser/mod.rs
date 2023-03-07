@@ -2,7 +2,7 @@
 pub mod keyword;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 mod error;
 

@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::ast::*;
 
 use crate::parser::ErrorLevel;

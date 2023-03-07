@@ -43,6 +43,21 @@ fn empty_function() {
 }
 
 #[test]
+fn literals() {
+    let int_expr = parse_expression("1").unwrap();
+    assert_eq!(
+        int_expr,
+        Expression::literal(ast::LiteralKind::Integer(1), Span { loc: 0, len: 1 })
+    );
+
+    let float_expr = parse_expression("1.0").unwrap();
+    assert_eq!(
+        float_expr,
+        Expression::literal(ast::LiteralKind::Float(1.0), Span { loc: 0, len: 3 })
+    );
+}
+
+#[test]
 fn binary_expr() {
     for (op, operator) in vec![
         ("+", BinaryOperator::Add),
