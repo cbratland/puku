@@ -84,15 +84,42 @@ impl Span {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum ExpressionKind {
+pub enum StatementKind {
     Return(Option<Box<Expression>>),
+    Expr(Box<Expression>),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Statement {
+    pub kind: StatementKind,
+    pub span: Span,
+}
+
+impl Statement {
+    pub fn ret(expr: Option<Expression>, span: Span) -> Self {
+        Self {
+            kind: StatementKind::Return(expr.map(Box::new)),
+            span,
+        }
+    }
+
+    pub fn expr(expr: Expression) -> Self {
+        let span = expr.span;
+        Self {
+            kind: StatementKind::Expr(Box::new(expr)),
+            span,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ExpressionKind {
     // assign `x = a`
-    Assign(Box<Expression>, Box<Expression>),
-    // object/array
-    // continue/break
+    // Assign(Box<Expression>, Box<Expression>),
+    // assign with an operator e.g. `x += a`
     // AssignOp(BinOp, Box<Expression>, Box<Expression>),
+    // function call with params
     // Call(Box<Expression>, Vec<Box<Expression>>),
-    // for/for n/for in
     // if
     If(Box<If>),
     // (expr)
@@ -107,6 +134,10 @@ pub enum ExpressionKind {
     Literal(LiteralKind),
     // variable
     Variable(Variable),
+    // TODO:
+    // object/array
+    // continue/break
+    // for/for n/for in/loop
 }
 
 #[derive(Debug, PartialEq)]
@@ -116,13 +147,6 @@ pub struct Expression {
 }
 
 impl Expression {
-    pub fn ret(expr: Option<Expression>, span: Span) -> Self {
-        Self {
-            kind: ExpressionKind::Return(expr.map(Box::new)),
-            span,
-        }
-    }
-
     pub fn binop(left: Expression, right: Expression, operator: BinaryOperator) -> Self {
         let span = left.span.to(&right.span);
         Self {
@@ -229,7 +253,7 @@ pub struct Function {
 
 #[derive(Debug, PartialEq)]
 pub struct Block {
-    pub expressions: Vec<Expression>,
+    pub statements: Vec<Statement>,
     pub span: Span,
 }
 

@@ -32,7 +32,7 @@ fn empty_function() {
                     return_type: None,
                     params: vec![],
                     block: Some(Block {
-                        expressions: vec![],
+                        statements: vec![],
                         span: Span { loc: 12, len: 2 }
                     })
                 })),
@@ -156,26 +156,26 @@ fn if_expr() {
                 UnaryOperator::Not
             ),
             Block {
-                expressions: vec![Expression::literal(
+                statements: vec![Statement::expr(Expression::literal(
                     ast::LiteralKind::Integer(1),
                     Span { loc: 11, len: 1 }
-                )],
+                ))],
                 span: Span { loc: 9, len: 5 }
             },
             Some(Expression::if_expr(
                 Expression::literal(ast::LiteralKind::Bool(true), Span { loc: 23, len: 4 }),
                 Block {
-                    expressions: vec![Expression::literal(
+                    statements: vec![Statement::expr(Expression::literal(
                         ast::LiteralKind::Integer(2),
                         Span { loc: 30, len: 1 }
-                    )],
+                    ))],
                     span: Span { loc: 28, len: 5 }
                 },
                 Some(Expression::block(Block {
-                    expressions: vec![Expression::literal(
+                    statements: vec![Statement::expr(Expression::literal(
                         ast::LiteralKind::Integer(3),
                         Span { loc: 41, len: 1 }
-                    )],
+                    ))],
                     span: Span { loc: 39, len: 5 }
                 })),
                 Span { loc: 20, len: 24 }

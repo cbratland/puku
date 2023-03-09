@@ -255,31 +255,49 @@ impl<'a> Parser<'a> {
     fn parse_block(&mut self) -> Result<Block> {
         let start = self.token.span;
         self.expect(&TokenKind::OpenDelimiter(Delimiter::Bracket))?;
-        let mut expressions: Vec<Expression> = vec![];
+        let mut statements: Vec<Statement> = vec![];
         while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Bracket)) {
-            expressions.push(self.parse_expr()?);
+            statements.push(self.parse_stmt()?);
         }
         Ok(Block {
-            expressions,
+            statements,
             span: start.to(&self.prev_token.span),
         })
+    }
+}
+
+// statement parsing
+impl<'a> Parser<'a> {
+    pub fn parse_stmt(&mut self) -> Result<Statement> {
+        if self.check_keyword(keyword::Return) {
+            // return [expr]
+            self.parse_return()
+        } else {
+            let expr = self.parse_expr()?;
+            Ok(Statement::expr(expr))
+        }
+    }
+
+    // parse return expression
+    pub fn parse_return(&mut self) -> Result<Statement> {
+        let start = self.token.span;
+        if !self.eat_keyword(keyword::Return) {
+            return Err(ParseError::expected_keyword(keyword::Return, start));
+        }
+        let expr = self.parse_expr()?;
+        Ok(Statement::ret(Some(expr), start.to(&self.token.span)))
     }
 }
 
 // expression parsing
 impl<'a> Parser<'a> {
     pub fn parse_expr(&mut self) -> Result<Expression> {
-        if self.check_keyword(keyword::Return) {
-            // return [expr]
-            self.parse_return()
+        let left = self.parse_expr_unit()?;
+        if self.token.is_bin_op() {
+            let result = self.parse_binary_expr(left)?;
+            result.ok_or_else(ParseError::unhandled)
         } else {
-            let left = self.parse_expr_unit()?;
-            if self.token.is_bin_op() {
-                let result = self.parse_binary_expr(left)?;
-                result.ok_or_else(ParseError::unhandled)
-            } else {
-                Ok(left)
-            }
+            Ok(left)
         }
     }
 
@@ -351,16 +369,6 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParseError::expected_expression(self.token.span))
         }
-    }
-
-    // parse return expression
-    pub fn parse_return(&mut self) -> Result<Expression> {
-        let start = self.token.span;
-        if !self.eat_keyword(keyword::Return) {
-            return Err(ParseError::expected_keyword(keyword::Return, start));
-        }
-        let expr = self.parse_expr()?;
-        Ok(Expression::ret(Some(expr), start.to(&self.token.span)))
     }
 
     // parse binary expression

@@ -5,7 +5,10 @@ mod leb;
 
 pub use emit::emit;
 
-use crate::ast::{self, BinaryOperator, Expression, ExpressionKind, ItemKind, UnaryOperator};
+use crate::ast::{
+    self, BinaryOperator, Expression, ExpressionKind, ItemKind, Statement, StatementKind,
+    UnaryOperator,
+};
 use ir::*;
 use std::collections::HashMap;
 
@@ -80,9 +83,25 @@ fn gen_function_code<W: std::io::Write>(buffer: &mut W, function: &ast::Function
         locals.insert(arg.name.clone(), i as u8);
     }
     if let Some(block) = &function.block {
-        for expression in &block.expressions {
-            gen_expr_code(buffer, expression, &mut locals);
+        for statement in &block.statements {
+            gen_stmt_code(buffer, statement, &mut locals);
         }
+    }
+}
+
+fn gen_stmt_code<W: std::io::Write>(
+    buffer: &mut W,
+    statement: &Statement,
+    locals: &mut HashMap<String, u8>,
+) {
+    match &statement.kind {
+        StatementKind::Return(expr) => {
+            if let Some(expr) = expr {
+                gen_expr_code(buffer, expr, locals);
+                buffer.write_all(&[Opcode::Return as u8]).unwrap();
+            }
+        }
+        StatementKind::Expr(expr) => gen_expr_code(buffer, expr, locals),
     }
 }
 
@@ -104,12 +123,6 @@ fn gen_expr_code<W: std::io::Write>(
                 }
             };
             buffer.write_all(&[Opcode::LocalGet as u8, index]).unwrap();
-        }
-        ExpressionKind::Return(expr) => {
-            if let Some(expr) = expr {
-                gen_expr_code(buffer, expr, locals);
-                buffer.write_all(&[Opcode::Return as u8]).unwrap();
-            }
         }
         ExpressionKind::BinOp(op) => {
             gen_expr_code(buffer, &op.left, locals);
@@ -211,8 +224,8 @@ fn gen_expr_code<W: std::io::Write>(
             //     .unwrap();
             // leb128::write::signed(buffer, 0).unwrap();
             // gen_expr_code(buffer, &if_expr.cond, locals);
-            for expr in &if_expr.then_branch.expressions {
-                gen_expr_code(buffer, expr, locals);
+            for stmt in &if_expr.then_branch.statements {
+                gen_stmt_code(buffer, stmt, locals);
             }
             if let Some(else_branch) = &if_expr.else_branch {
                 buffer.write_all(&[Opcode::Else as u8]).unwrap();
@@ -221,11 +234,11 @@ fn gen_expr_code<W: std::io::Write>(
             buffer.write_all(&[Opcode::End as u8]).unwrap();
         }
         ExpressionKind::Block(block) => {
-            for expr in &block.expressions {
-                gen_expr_code(buffer, expr, locals);
+            for stmt in &block.statements {
+                gen_stmt_code(buffer, stmt, locals);
             }
         }
-        _ => panic!("unhandled expression {:?}", expression.kind),
+        // _ => panic!("unhandled expression {:?}", expression.kind),
     }
 }
 

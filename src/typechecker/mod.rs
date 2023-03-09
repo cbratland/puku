@@ -72,8 +72,8 @@ fn check_item(src: &str, item: &mut Item, symbol_table: &mut SymbolTable) -> Res
                         ),
                     );
                 }
-                for expr in &mut block.expressions {
-                    check_expr(expr, symbol_table)?;
+                for stmt in &mut block.statements {
+                    check_stmt(stmt, symbol_table)?;
                 }
                 symbol_table.pop_scope();
             }
@@ -84,21 +84,27 @@ fn check_item(src: &str, item: &mut Item, symbol_table: &mut SymbolTable) -> Res
 
 fn check_block(block: &mut Block, symbol_table: &mut SymbolTable) -> Result<()> {
     symbol_table.push_scope();
-    for expr in &mut block.expressions {
-        check_expr(expr, symbol_table)?;
+    for stmt in &mut block.statements {
+        check_stmt(stmt, symbol_table)?;
     }
     symbol_table.pop_scope();
     Ok(())
 }
 
-pub fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Result<Type> {
-    Ok(match &mut expr.kind {
-        ExpressionKind::Return(ret) => {
+pub fn check_stmt(stmt: &mut Statement, symbol_table: &mut SymbolTable) -> Result<Type> {
+    match &mut stmt.kind {
+        StatementKind::Return(ret) => {
             if let Some(expr) = ret {
                 check_expr(expr, symbol_table)?;
             }
-            Type::Unit
+            Ok(Type::Unit)
         }
+        StatementKind::Expr(expr) => check_expr(expr, symbol_table),
+    }
+}
+
+pub fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Result<Type> {
+    Ok(match &mut expr.kind {
         ExpressionKind::BinOp(op) => {
             let left = check_expr(&mut op.left, symbol_table)?;
             let right = check_expr(&mut op.right, symbol_table)?;
@@ -151,6 +157,6 @@ pub fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Resu
             check_block(block, symbol_table)?;
             Type::Unit
         }
-        _ => panic!("unhandled expression {:?}", expr),
+        // _ => panic!("unhandled expression {:?}", expr),
     })
 }
