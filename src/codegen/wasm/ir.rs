@@ -18,7 +18,7 @@ pub enum Section {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Valtype {
     I32 = 0x7F,
     I64,
@@ -71,7 +71,7 @@ pub struct Import {
 }
 
 pub struct Code {
-    pub locals: Vec<Valtype>,
+    pub locals: Vec<(Valtype, u32)>, // variable type, count
     pub body: Vec<u8>,
 }
 

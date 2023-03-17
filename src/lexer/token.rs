@@ -68,10 +68,9 @@ impl Token {
         use TokenKind::*;
         matches!(
             self.kind,
-            Equal
+            EqualEqual
                 | LThan
                 | LThanEqual
-                | EqualEqual
                 | NotEqual
                 | GThanEqual
                 | GThan

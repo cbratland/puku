@@ -99,6 +99,25 @@ pub fn check_stmt(stmt: &mut Statement, symbol_table: &mut SymbolTable) -> Resul
             }
             Ok(Type::Unit)
         }
+        StatementKind::Let(local) => {
+            let var_type = check_expr(&mut local.init, symbol_table)?;
+            if let Some(static_type) = &local.r#type {
+                if var_type != *static_type {
+                    return Err(ParseError::mismatched(*static_type, local.init.span));
+                }
+            } else {
+                // infer type
+                local.r#type = Some(var_type);
+            }
+            symbol_table.insert(
+                &local.ident,
+                Symbol::var(
+                    local.ident.clone(),
+                    local.r#type.expect("variable type not filled in"),
+                ),
+            );
+            Ok(Type::Unit)
+        }
         StatementKind::Expr(expr) => check_expr(expr, symbol_table),
     }
 }
@@ -156,7 +175,6 @@ pub fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Resu
         ExpressionKind::Block(block) => {
             check_block(block, symbol_table)?;
             Type::Unit
-        }
-        // _ => panic!("unhandled expression {:?}", expr),
+        } // _ => panic!("unhandled expression {:?}", expr),
     })
 }

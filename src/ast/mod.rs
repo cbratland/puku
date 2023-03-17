@@ -85,6 +85,9 @@ impl Span {
 
 #[derive(Debug, PartialEq)]
 pub enum StatementKind {
+    // let lhs = rhs
+    Let(Box<Local>),
+    // return expr?
     Return(Option<Box<Expression>>),
     Expr(Box<Expression>),
 }
@@ -96,6 +99,18 @@ pub struct Statement {
 }
 
 impl Statement {
+    pub fn declaration(ident: String, init: Expression, span: Span) -> Self {
+        Self {
+            kind: StatementKind::Let(Box::new(Local {
+                mutable: false,
+                ident,
+                r#type: None,
+                init,
+            })),
+            span,
+        }
+    }
+
     pub fn ret(expr: Option<Expression>, span: Span) -> Self {
         Self {
             kind: StatementKind::Return(expr.map(Box::new)),
@@ -110,6 +125,14 @@ impl Statement {
             span,
         }
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Local {
+    pub mutable: bool,
+    pub ident: String,
+    pub r#type: Option<Type>,
+    pub init: Expression,
 }
 
 #[derive(Debug, PartialEq)]

@@ -33,14 +33,14 @@ pub fn gen_ir(ast: ast::Ast) -> Module {
             },
         };
         let mut code: Vec<u8> = vec![];
-        gen_function_code(&mut code, &function);
+        let locals = gen_function_code(&mut code, &function);
+
+        // bytes: [00, 61, 73, 6D, 01, 00, 00, 00, 01, 87, 80, 80, 80, 00, 01, 60, 02, 7F, 7F, 01, 7F, 03, 82, 80, 80, 80, 00, 01, 00, 05, 83, 80, 80, 80, 00, 01, 00, 00, 07, 87, 80, 80, 80, 00, 01, 03, 61, 64, 64, 00, 00, 0A, 92, 80, 80, 80, 00, 01, 10, 01, 7F, 41, 01, 21, 02, 20, 00, 20, 01, 41, 01, 6A, 6A, 0F, 0B]
+        // bytes: [00, 61, 73, 6D, 01, 00, 00, 00, 01, 87, 80, 80, 80, 00, 01, 60, 02, 7F, 7F, 01, 7F, 03, 82, 80, 80, 80, 00, 01, 00, 05, 83, 80, 80, 80, 00, 01, 00, 00, 07, 87, 80, 80, 80, 00, 01, 03, 61, 64, 64, 00, 00, 0A, 91, 80, 80, 80, 00, 01, 0F, 00, 41, 01, 21, 02, 20, 00, 20, 01, 41, 01, 6A, 6A, 0F, 0B]
 
         let ir_function = Function {
             type_index: types.len() as u8,
-            code: Code {
-                locals: vec![],
-                body: code,
-            },
+            code: Code { locals, body: code },
         };
         let export = Export {
             name: function.name,
@@ -77,22 +77,61 @@ fn type_to_wasm(ast_type: &ast::Type) -> Valtype {
     }
 }
 
-fn gen_function_code<W: std::io::Write>(buffer: &mut W, function: &ast::Function) {
-    let mut locals: HashMap<String, u8> = HashMap::new();
+fn gen_function_code<W: std::io::Write>(
+    buffer: &mut W,
+    function: &ast::Function,
+) -> Vec<(Valtype, u32)> {
+    // locals, key: name, value: (index, type)
+    let mut locals: HashMap<String, (u8, Valtype)> = HashMap::new();
     for (i, arg) in function.params.iter().enumerate() {
-        locals.insert(arg.name.clone(), i as u8);
+        locals.insert(
+            arg.name.clone(),
+            (
+                i as u8,
+                type_to_wasm(&arg.r#type.expect("param has no type")),
+            ),
+        );
     }
     if let Some(block) = &function.block {
         for statement in &block.statements {
             gen_stmt_code(buffer, statement, &mut locals);
         }
     }
+
+    // todo: there has got to be a better way of writing this
+    let mut locals_vec: Vec<(Valtype, u32)> = vec![];
+    let mut i32_count = 0;
+    let mut i64_count = 0;
+    let mut f32_count = 0;
+    let mut f64_count = 0;
+    for (_, (_, valtype)) in locals.iter() {
+        match valtype {
+            Valtype::I32 => i32_count += 1,
+            Valtype::I64 => i64_count += 1,
+            Valtype::F32 => f32_count += 1,
+            Valtype::F64 => f64_count += 1,
+            Valtype::V128 => panic!("unsupported type"),
+        }
+    }
+    if i32_count > 0 {
+        locals_vec.push((Valtype::I32, i32_count));
+    }
+    if i64_count > 0 {
+        locals_vec.push((Valtype::I64, i64_count));
+    }
+    if f32_count > 0 {
+        locals_vec.push((Valtype::F32, f32_count));
+    }
+    if f64_count > 0 {
+        locals_vec.push((Valtype::F64, f64_count));
+    }
+    return locals_vec;
 }
 
 fn gen_stmt_code<W: std::io::Write>(
     buffer: &mut W,
     statement: &Statement,
-    locals: &mut HashMap<String, u8>,
+    locals: &mut HashMap<String, (u8, Valtype)>,
 ) {
     match &statement.kind {
         StatementKind::Return(expr) => {
@@ -100,6 +139,15 @@ fn gen_stmt_code<W: std::io::Write>(
                 gen_expr_code(buffer, expr, locals);
                 buffer.write_all(&[Opcode::Return as u8]).unwrap();
             }
+        }
+        StatementKind::Let(local) => {
+            gen_expr_code(buffer, &local.init, locals);
+            let idx = locals.len() as u8;
+            buffer.write_all(&[Opcode::LocalSet as u8, idx]).unwrap();
+            locals.insert(
+                local.ident.clone(),
+                (idx, type_to_wasm(&local.r#type.expect("missing var type"))),
+            );
         }
         StatementKind::Expr(expr) => gen_expr_code(buffer, expr, locals),
     }
@@ -109,16 +157,22 @@ fn gen_stmt_code<W: std::io::Write>(
 fn gen_expr_code<W: std::io::Write>(
     buffer: &mut W,
     expression: &Expression,
-    locals: &mut HashMap<String, u8>,
+    locals: &mut HashMap<String, (u8, Valtype)>,
 ) {
     // todo: support more expressions
     match &expression.kind {
         ExpressionKind::Variable(var) => {
             let index = match locals.get(&var.name) {
-                Some(idx) => *idx,
+                Some(idx) => idx.0,
                 None => {
                     let new_idx = locals.len() as u8;
-                    locals.insert(var.name.clone(), new_idx);
+                    locals.insert(
+                        var.name.clone(),
+                        (
+                            new_idx,
+                            type_to_wasm(&var.r#type.expect("missing var type")),
+                        ),
+                    );
                     new_idx
                 }
             };
@@ -237,8 +291,7 @@ fn gen_expr_code<W: std::io::Write>(
             for stmt in &block.statements {
                 gen_stmt_code(buffer, stmt, locals);
             }
-        }
-        // _ => panic!("unhandled expression {:?}", expression.kind),
+        } // _ => panic!("unhandled expression {:?}", expression.kind),
     }
 }
 

@@ -185,14 +185,16 @@ pub fn emit<W: std::io::Write + std::io::Seek>(
             leb128::write::unsigned(buffer, functions.len() as u64)?;
             for func in functions {
                 let locals_len = func.code.locals.len();
-                let func_len = func.code.body.len() + 2 + locals_len;
-                leb128::write::unsigned(buffer, func_len as u64)?;
+                let func_offset = reserve_header(buffer)?;
+                // write locals vec
                 leb128::write::unsigned(buffer, locals_len as u64)?;
-                for local in func.code.locals {
+                for (local, count) in func.code.locals {
+                    leb128::write::unsigned(buffer, count as u64)?;
                     buffer.write_all(&[local as u8])?;
                 }
                 buffer.write_all(&func.code.body)?;
                 buffer.write_all(&[Opcode::End as u8])?;
+                write_header(buffer, func_offset)?;
             }
 
             write_header(buffer, header_offset)?;

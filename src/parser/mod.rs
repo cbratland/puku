@@ -156,7 +156,7 @@ impl<'a> Parser<'a> {
     fn parse_item_kind(&mut self) -> Result<Option<ItemKind>> {
         if self.check_func() {
             let func = self.parse_func()?;
-            println!("parsed func: {:?}", func);
+            println!("parsed func: {:#?}", func);
             Ok(Some(ItemKind::Function(Box::new(func))))
         } else {
             Ok(None)
@@ -269,7 +269,10 @@ impl<'a> Parser<'a> {
 // statement parsing
 impl<'a> Parser<'a> {
     pub fn parse_stmt(&mut self) -> Result<Statement> {
-        if self.check_keyword(keyword::Return) {
+        if self.check_keyword(keyword::Let) {
+            // let [expr] = [expr]
+            self.parse_declaration()
+        } else if self.check_keyword(keyword::Return) {
             // return [expr]
             self.parse_return()
         } else {
@@ -285,7 +288,25 @@ impl<'a> Parser<'a> {
             return Err(ParseError::expected_keyword(keyword::Return, start));
         }
         let expr = self.parse_expr()?;
-        Ok(Statement::ret(Some(expr), start.to(&self.token.span)))
+        let span = start.to(&expr.span);
+        Ok(Statement::ret(Some(expr), span))
+    }
+
+    pub fn parse_declaration(&mut self) -> Result<Statement> {
+        if !self.eat_keyword(keyword::Let) {
+            return Err(ParseError::expected_keyword(keyword::Let, self.token.span));
+        }
+        let lhs = self.parse_expr()?;
+        if let ExpressionKind::Variable(ident) = lhs.kind {
+            self.expect(&TokenKind::Equal)?;
+            let rhs = self.parse_expr()?;
+            let span = lhs.span.to(&rhs.span);
+            Ok(Statement::declaration(ident.name, rhs, span))
+        } else {
+            // expected variable for let identifier
+            // TODO: type ascription
+            Err(ParseError::unhandled())
+        }
     }
 }
 
