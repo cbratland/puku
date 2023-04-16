@@ -18,8 +18,10 @@ pub fn gen_ir(ast: ast::Ast) -> Module {
     let mut functions: Vec<ir::Function> = vec![];
     let mut exports: Vec<ir::Export> = vec![];
 
-    for function in ast.items {
-        let ItemKind::Function(function) = function.kind;
+    let mut declarations: Vec<String> = vec![];
+
+    for function in &ast.items {
+        let ItemKind::Function(function) = &function.kind;
         let func_type = ir::Type {
             params: function
                 .params
@@ -32,25 +34,34 @@ pub fn gen_ir(ast: ast::Ast) -> Module {
                 vec![]
             },
         };
-        let mut code: Vec<u8> = vec![];
-        let locals = gen_function_code(&mut code, &function);
-
-        // bytes: [00, 61, 73, 6D, 01, 00, 00, 00, 01, 87, 80, 80, 80, 00, 01, 60, 02, 7F, 7F, 01, 7F, 03, 82, 80, 80, 80, 00, 01, 00, 05, 83, 80, 80, 80, 00, 01, 00, 00, 07, 87, 80, 80, 80, 00, 01, 03, 61, 64, 64, 00, 00, 0A, 92, 80, 80, 80, 00, 01, 10, 01, 7F, 41, 01, 21, 02, 20, 00, 20, 01, 41, 01, 6A, 6A, 0F, 0B]
-        // bytes: [00, 61, 73, 6D, 01, 00, 00, 00, 01, 87, 80, 80, 80, 00, 01, 60, 02, 7F, 7F, 01, 7F, 03, 82, 80, 80, 80, 00, 01, 00, 05, 83, 80, 80, 80, 00, 01, 00, 00, 07, 87, 80, 80, 80, 00, 01, 03, 61, 64, 64, 00, 00, 0A, 91, 80, 80, 80, 00, 01, 0F, 00, 41, 01, 21, 02, 20, 00, 20, 01, 41, 01, 6A, 6A, 0F, 0B]
 
         let ir_function = Function {
             type_index: types.len() as u8,
-            code: Code { locals, body: code },
+            code: Code {
+                locals: vec![],
+                body: vec![],
+            },
         };
         let export = Export {
-            name: function.name,
+            name: function.name.clone(),
             kind: ExternalKind::Function,
             index: functions.len() as u32,
         };
 
+        declarations.push(function.name.clone());
         types.push(func_type);
         functions.push(ir_function);
         exports.push(export);
+    }
+
+    // generate function code
+    for i in 0..functions.len() {
+        let ItemKind::Function(function) = &ast.items[i].kind;
+
+        let mut code: Vec<u8> = vec![];
+        let locals = gen_function_code(&mut code, &function, &declarations);
+
+        functions[i].code = Code { locals, body: code };
     }
 
     Module {
@@ -80,17 +91,20 @@ fn type_to_wasm(ast_type: &ast::Type) -> Valtype {
 fn gen_function_code<W: std::io::Write>(
     buffer: &mut W,
     function: &ast::Function,
+    declarations: &Vec<String>,
 ) -> Vec<(Valtype, u32)> {
     // locals, key: name, value: (index, type)
-    let mut locals: HashMap<String, (u8, Valtype)> = HashMap::new();
+    let mut locals: HashMap<String, u8> = HashMap::new();
+    let mut types: Vec<Valtype> = vec![];
+
+    // define function indexes
+    for (i, func_name) in declarations.iter().enumerate() {
+        locals.insert(func_name.clone(), i as u8);
+    }
+
     for (i, arg) in function.params.iter().enumerate() {
-        locals.insert(
-            arg.name.clone(),
-            (
-                i as u8,
-                type_to_wasm(&arg.r#type.expect("param has no type")),
-            ),
-        );
+        locals.insert(arg.name.clone(), i as u8);
+        types.push(type_to_wasm(&arg.r#type.expect("param has no type")))
     }
     if let Some(block) = &function.block {
         for statement in &block.statements {
@@ -104,7 +118,7 @@ fn gen_function_code<W: std::io::Write>(
     let mut i64_count = 0;
     let mut f32_count = 0;
     let mut f64_count = 0;
-    for (_, (_, valtype)) in locals.iter() {
+    for valtype in types.iter() {
         match valtype {
             Valtype::I32 => i32_count += 1,
             Valtype::I64 => i64_count += 1,
@@ -125,13 +139,14 @@ fn gen_function_code<W: std::io::Write>(
     if f64_count > 0 {
         locals_vec.push((Valtype::F64, f64_count));
     }
-    return locals_vec;
+
+    locals_vec
 }
 
 fn gen_stmt_code<W: std::io::Write>(
     buffer: &mut W,
     statement: &Statement,
-    locals: &mut HashMap<String, (u8, Valtype)>,
+    locals: &mut HashMap<String, u8>,
 ) {
     match &statement.kind {
         StatementKind::Return(expr) => {
@@ -144,10 +159,7 @@ fn gen_stmt_code<W: std::io::Write>(
             gen_expr_code(buffer, &local.init, locals);
             let idx = locals.len() as u8;
             buffer.write_all(&[Opcode::LocalSet as u8, idx]).unwrap();
-            locals.insert(
-                local.ident.clone(),
-                (idx, type_to_wasm(&local.r#type.expect("missing var type"))),
-            );
+            locals.insert(local.ident.clone(), idx);
         }
         StatementKind::Expr(expr) => gen_expr_code(buffer, expr, locals),
     }
@@ -157,26 +169,43 @@ fn gen_stmt_code<W: std::io::Write>(
 fn gen_expr_code<W: std::io::Write>(
     buffer: &mut W,
     expression: &Expression,
-    locals: &mut HashMap<String, (u8, Valtype)>,
+    locals: &mut HashMap<String, u8>,
 ) {
     // todo: support more expressions
     match &expression.kind {
         ExpressionKind::Variable(var) => {
             let index = match locals.get(&var.name) {
-                Some(idx) => idx.0,
+                Some(idx) => idx,
                 None => {
-                    let new_idx = locals.len() as u8;
-                    locals.insert(
-                        var.name.clone(),
-                        (
-                            new_idx,
-                            type_to_wasm(&var.r#type.expect("missing var type")),
-                        ),
-                    );
-                    new_idx
+                    panic!("variable not found: {}", var.name);
+                    // let new_idx = locals.len() as u8;
+                    // locals.insert(
+                    //     var.name.clone(),
+                    //     (
+                    //         new_idx,
+                    //         type_to_wasm(&var.r#type.expect("missing var type")),
+                    //     ),
+                    // );
+                    // new_idx
                 }
             };
-            buffer.write_all(&[Opcode::LocalGet as u8, index]).unwrap();
+            buffer.write_all(&[Opcode::LocalGet as u8, *index]).unwrap();
+        }
+        ExpressionKind::Call(callee, args) => {
+            // put args on stack
+            for arg in args {
+                gen_expr_code(buffer, arg, locals);
+            }
+            // call function
+            if let ExpressionKind::Variable(var) = &callee.kind {
+                let index = match locals.get(&var.name) {
+                    Some(idx) => idx,
+                    None => {
+                        panic!("function not found: {}", var.name);
+                    }
+                };
+                buffer.write_all(&[Opcode::Call as u8, *index]).unwrap();
+            }
         }
         ExpressionKind::BinOp(op) => {
             gen_expr_code(buffer, &op.left, locals);
@@ -283,7 +312,7 @@ fn gen_expr_code<W: std::io::Write>(
             }
             if let Some(else_branch) = &if_expr.else_branch {
                 buffer.write_all(&[Opcode::Else as u8]).unwrap();
-                gen_expr_code(buffer, &else_branch, locals);
+                gen_expr_code(buffer, else_branch, locals);
             }
             buffer.write_all(&[Opcode::End as u8]).unwrap();
         }

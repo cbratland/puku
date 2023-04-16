@@ -361,7 +361,23 @@ impl<'a> Parser<'a> {
                 _ => Expression::var(name.to_string(), self.token.span),
             };
             self.next();
-            Ok(result)
+
+            if self.eat(&TokenKind::OpenDelimiter(Delimiter::Parenthesis))
+            // && matches!(result.kind, ExpressionKind::Variable { .. })
+            {
+                // function call
+                let mut args = vec![];
+                while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
+                    args.push(self.parse_expr()?);
+                    if !self.check(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
+                        self.expect(&TokenKind::Comma)?;
+                    }
+                }
+                return Ok(Expression::call(result, args, self.token.span));
+            } else {
+                // variable
+                Ok(result)
+            }
         } else if let TokenKind::Literal(kind) = &self.token.kind {
             // literal
             let lit = self.token.as_str(self.src);

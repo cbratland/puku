@@ -21,6 +21,10 @@ impl Symbol {
             r#type: typ,
         }
     }
+
+    pub fn func(name: String, typ: Type) -> Self {
+        Self::var(name, typ)
+    }
 }
 
 #[derive(Debug)]

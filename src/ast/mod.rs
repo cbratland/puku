@@ -142,7 +142,7 @@ pub enum ExpressionKind {
     // assign with an operator e.g. `x += a`
     // AssignOp(BinOp, Box<Expression>, Box<Expression>),
     // function call with params
-    // Call(Box<Expression>, Vec<Box<Expression>>),
+    Call(Box<Expression>, Vec<Expression>),
     // if
     If(Box<If>),
     // (expr)
@@ -201,6 +201,13 @@ impl Expression {
     pub fn var(name: String, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Variable(Variable { name, r#type: None }),
+            span,
+        }
+    }
+
+    pub fn call(callee: Expression, args: Vec<Expression>, span: Span) -> Self {
+        Self {
+            kind: ExpressionKind::Call(Box::new(callee), args),
             span,
         }
     }

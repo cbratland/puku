@@ -29,6 +29,17 @@ impl ParseError {
 pub fn check(src: &str, ast: &mut Ast) -> Result<()> {
     let mut symbol_table = SymbolTable::new();
     for item in &mut ast.items {
+        let ItemKind::Function(func) = &item.kind;
+        // add function as symbol
+        symbol_table.insert(
+            &func.name,
+            Symbol::func(
+                func.name.clone(),
+                func.return_type.expect("function return type not defined"),
+            ),
+        );
+    }
+    for item in &mut ast.items {
         check_item(src, item, &mut symbol_table)?;
     }
     Ok(())
@@ -59,6 +70,7 @@ fn check_item(src: &str, item: &mut Item, symbol_table: &mut SymbolTable) -> Res
                     param.r#type = Some(get_type(symbol_table, src, *span)?);
                 }
             }
+
             // typecheck block expressions
             if let Some(block) = &mut func.block {
                 symbol_table.push_scope();
@@ -138,6 +150,16 @@ pub fn check_expr(expr: &mut Expression, symbol_table: &mut SymbolTable) -> Resu
             let var_type = get_type_from_name(symbol_table, &var.name, expr.span)?;
             var.r#type = Some(var_type);
             var_type
+        }
+        ExpressionKind::Call(callee, _args) => {
+            if let ExpressionKind::Variable(var) = &mut callee.kind {
+                let var_type = get_type_from_name(symbol_table, &var.name, expr.span)?;
+                // todo: check arg types
+                var.r#type = Some(var_type);
+                var_type
+            } else {
+                panic!("unhandled callee kind {:?}", callee.kind);
+            }
         }
         ExpressionKind::Literal(lit) => match lit {
             LiteralKind::Integer(_) => Type::Basic(BasicType::Int32),
