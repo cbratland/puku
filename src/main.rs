@@ -45,7 +45,8 @@ fn main() {
         return;
     }
     // println!("ast: {:#?}", ast);
-    let module = codegen::wasm::gen_ir(ast);
+    let mut compiler = codegen::wasm::WasmCompiler::new();
+    let module = compiler.compile(ast);
 
     // emit to tmp.wasm
     let file = std::fs::File::create("./tmp.wasm").expect("failed to create file");
