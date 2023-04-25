@@ -5,8 +5,8 @@ use crate::parser::parse;
 use crate::parser::tests::parse_expression;
 
 pub fn check_expression(expr: &mut Expression) -> Result<Type> {
-    let mut symbol_table = SymbolTable::new();
-    check_expr(expr, &mut symbol_table)
+    let mut checker = TypeChecker::new("");
+    checker.check_expr(expr)
 }
 
 #[test]
