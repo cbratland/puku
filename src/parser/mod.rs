@@ -296,16 +296,19 @@ impl<'a> Parser<'a> {
         if !self.eat_keyword(keyword::Let) {
             return Err(ParseError::expected_keyword(keyword::Let, self.token.span));
         }
-        let lhs = self.parse_expr()?;
-        if let ExpressionKind::Variable(ident) = lhs.kind {
-            self.expect(&TokenKind::Equal)?;
-            let rhs = self.parse_expr()?;
-            let span = lhs.span.to(&rhs.span);
-            Ok(Statement::declaration(ident.name, rhs, span))
+        let assign: Expression = self.parse_expr()?;
+        if let ExpressionKind::Assign(lhs, rhs) = assign.kind {
+            if let ExpressionKind::Variable(ident) = lhs.kind {
+                // TODO: include let in span
+                Ok(Statement::declaration(ident.name, *rhs, assign.span))
+            } else {
+                // TODO: type ascription
+                // expected variable for let identifier
+                panic!("expected variable after let identifier");
+            }
         } else {
-            // expected variable for let identifier
-            // TODO: type ascription
-            Err(ParseError::unhandled())
+            panic!("expected assignment after let keyword");
+            // Err(ParseError::unhandled())
         }
     }
 }
@@ -374,6 +377,11 @@ impl<'a> Parser<'a> {
                     }
                 }
                 return Ok(Expression::call(result, args, self.token.span));
+            } else if self.eat(&TokenKind::Equal) {
+                // assign
+                let rhs = self.parse_expr()?;
+                let span = result.span.to(&rhs.span);
+                return Ok(Expression::assign(result, rhs, span));
             } else {
                 // variable
                 Ok(result)

@@ -138,7 +138,7 @@ pub struct Local {
 #[derive(Debug, PartialEq)]
 pub enum ExpressionKind {
     // assign `x = a`
-    // Assign(Box<Expression>, Box<Expression>),
+    Assign(Box<Expression>, Box<Expression>),
     // assign with an operator e.g. `x += a`
     // AssignOp(BinOp, Box<Expression>, Box<Expression>),
     // function call with params
@@ -208,6 +208,13 @@ impl Expression {
     pub fn call(callee: Expression, args: Vec<Expression>, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Call(Box::new(callee), args),
+            span,
+        }
+    }
+
+    pub fn assign(lhs: Expression, rhs: Expression, span: Span) -> Self {
+        Self {
+            kind: ExpressionKind::Assign(Box::new(lhs), Box::new(rhs)),
             span,
         }
     }

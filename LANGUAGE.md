@@ -13,11 +13,12 @@ return      ::= "return" expr
 block       ::= "{" (stmt)* "}"
 
 expr      ::= expr_unit | binary
-expr_unit ::= block | func | func_call | unary | literal | "(" expr ")" | IDENT
+expr_unit ::= block | func | func_call | assign | unary | literal | "(" expr ")" | IDENT
 func_call ::= IDENT "(" (expr ",")* ")"
+assign    ::= expr_unit "=" expr_unit
 binary    ::= expr_unit binop expr_unit
- binop     ::= "+" | "-" | "*" | "/"
+binop     ::= "+" | "-" | "*" | "/"
 unary     ::= uop expr
- uop       ::= "-" | "!"
+uop       ::= "-" | "!"
 literal   ::= NUMBER | STRING | "true" | "false"
 ```

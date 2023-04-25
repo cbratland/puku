@@ -199,6 +199,22 @@ impl WasmCompiler {
                         }
                     };
                     buffer.write_all(&[Opcode::Call as u8, *index]).unwrap();
+                } else {
+                    panic!("have to call a function");
+                }
+            }
+            ExpressionKind::Assign(lhs, rhs) => {
+                if let ExpressionKind::Variable(var) = &lhs.kind {
+                    self.gen_expr_code(buffer, rhs);
+                    let index = match self.locals.get(&var.name) {
+                        Some(idx) => idx,
+                        None => {
+                            panic!("variable not found: {}", var.name);
+                        }
+                    };
+                    buffer.write_all(&[Opcode::LocalSet as u8, *index]).unwrap();
+                } else {
+                    panic!("can only assign to variables");
                 }
             }
             ExpressionKind::BinOp(op) => {
@@ -234,7 +250,22 @@ impl WasmCompiler {
                             Valtype::I32 => Opcode::I32Or,
                             _ => panic!("unknown type {:?}", op.r#type),
                         },
-                        _ => todo!(),
+                        BinaryOperator::EqualEqual => match wasm_type {
+                            Valtype::I32 => Opcode::I32Eq,
+                            Valtype::I64 => Opcode::I64Eq,
+                            Valtype::F32 => Opcode::F32Eq,
+                            Valtype::F64 => Opcode::F64Eq,
+                            _ => panic!("unknown type {:?}", op.r#type),
+                        },
+                        BinaryOperator::LessOrEqual => match wasm_type {
+                            // TODO: signed vs unsigned
+                            Valtype::I32 => Opcode::I32LeS,
+                            Valtype::I64 => Opcode::I64LeS,
+                            Valtype::F32 => Opcode::F32Le,
+                            Valtype::F64 => Opcode::F64Le,
+                            _ => panic!("unknown type {:?}", op.r#type),
+                        },
+                        op => panic!("unhandled binary operator {:?}", op),
                     } as u8])
                     .unwrap();
             }

@@ -182,13 +182,22 @@ pub enum Opcode {
     I32Eqz = 0x45,
     I32Eq = 0x46,
     I32Ne = 0x47,
+    I32LeS = 0x4C,
+    I32LeU = 0x4D,
+
     I64Eqz = 0x50,
     I64Eq = 0x51,
     I64Ne = 0x52,
+    I64LeS = 0x57,
+    I64LeU = 0x58,
+
     F32Eq = 0x5B,
     F32Ne = 0x5C,
+    F32Le = 0x5F,
+
     F64Eq = 0x61,
     F64Ne = 0x62,
+    F64Le = 0x65,
 
     I32Add = 0x6A,
     I32Sub = 0x6B,
