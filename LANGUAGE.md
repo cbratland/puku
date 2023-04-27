@@ -13,12 +13,28 @@ return      ::= "return" expr
 block       ::= "{" (stmt)* "}"
 
 expr      ::= expr_unit | binary
-expr_unit ::= block | func | func_call | assign | unary | literal | "(" expr ")" | IDENT
-func_call ::= IDENT "(" (expr ",")* ")"
-assign    ::= expr_unit "=" expr_unit
+expr_unit ::= if | while | block | unary | group | literal | func_call | IDENT | assign
+
 binary    ::= expr_unit binop expr_unit
 binop     ::= "+" | "-" | "*" | "/"
 unary     ::= uop expr
 uop       ::= "-" | "!"
+
+if        ::= "if" expr block ("else" block)?
+while     ::= "while" expr block
+group     ::= "(" expr ")"
 literal   ::= NUMBER | STRING | "true" | "false"
+func_call ::= IDENT "(" (expr ",")* ")"
+assign    ::= expr_unit "=" expr_unit
 ```
+
+# roadmap
+[x] variable mutability
+[x] function calls
+[x] while loops
+[ ] comparison ops (<, <=, >, >=, etc.)
+[ ] break and continue keywords
+[ ] else if branches
+[ ] specify variable mutability (semantic analysis?)
+[ ] evaluatable blocks (blocks return a value)
+[ ] optionals

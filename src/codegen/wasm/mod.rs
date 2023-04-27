@@ -257,6 +257,13 @@ impl WasmCompiler {
                             Valtype::F64 => Opcode::F64Eq,
                             _ => panic!("unknown type {:?}", op.r#type),
                         },
+                        BinaryOperator::NotEqual => match wasm_type {
+                            Valtype::I32 => Opcode::I32Ne,
+                            Valtype::I64 => Opcode::I64Ne,
+                            Valtype::F32 => Opcode::F32Ne,
+                            Valtype::F64 => Opcode::F64Ne,
+                            _ => panic!("unknown type {:?}", op.r#type),
+                        },
                         BinaryOperator::LessOrEqual => match wasm_type {
                             // TODO: signed vs unsigned
                             Valtype::I32 => Opcode::I32LeS,
@@ -327,11 +334,6 @@ impl WasmCompiler {
             ExpressionKind::If(if_expr) => {
                 self.gen_expr_code(buffer, &if_expr.cond);
                 buffer.write_all(&[Opcode::If as u8, 0x40]).unwrap();
-                // buffer
-                //     .write_all(&[Opcode::I32Eqz as u8, Opcode::BrIf as u8])
-                //     .unwrap();
-                // leb128::write::signed(buffer, 0).unwrap();
-                // gen_expr_code(buffer, &if_expr.cond, locals);
                 for stmt in &if_expr.then_branch.statements {
                     self.gen_stmt_code(buffer, stmt);
                 }
@@ -339,6 +341,27 @@ impl WasmCompiler {
                     buffer.write_all(&[Opcode::Else as u8]).unwrap();
                     self.gen_expr_code(buffer, else_branch);
                 }
+                buffer.write_all(&[Opcode::End as u8]).unwrap();
+            }
+            ExpressionKind::While(cond, body) => {
+                buffer.write_all(&[Opcode::Block as u8, 0x40]).unwrap();
+
+                buffer.write_all(&[Opcode::Loop as u8, 0x40]).unwrap();
+                // check condition and break if false
+                self.gen_expr_code(buffer, cond);
+                buffer
+                    .write_all(&[Opcode::I32Eqz as u8, Opcode::BrIf as u8])
+                    .unwrap();
+                leb128::write::signed(buffer, 1).unwrap();
+
+                // body block
+                self.gen_expr_code(buffer, body);
+
+                // loop to start
+                buffer.write_all(&[Opcode::Br as u8]).unwrap();
+                leb128::write::signed(buffer, 0).unwrap();
+                buffer.write_all(&[Opcode::End as u8]).unwrap();
+
                 buffer.write_all(&[Opcode::End as u8]).unwrap();
             }
             ExpressionKind::Block(block) => {

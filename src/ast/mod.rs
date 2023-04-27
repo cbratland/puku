@@ -161,6 +161,8 @@ pub enum ExpressionKind {
     // object/array
     // continue/break
     // for/for n/for in/loop
+    // while (cond) block
+    While(Box<Expression>, Box<Expression>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -246,6 +248,13 @@ impl Expression {
                 else_branch,
                 span,
             })),
+            span,
+        }
+    }
+
+    pub fn while_expr(cond: Expression, block: Block, span: Span) -> Self {
+        Self {
+            kind: ExpressionKind::While(Box::new(cond), Box::new(Self::block(block))),
             span,
         }
     }

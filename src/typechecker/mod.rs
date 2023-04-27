@@ -238,6 +238,16 @@ impl<'a> TypeChecker<'a> {
                 // todo: allow ifs to evaluate to a type
                 Type::Unit
             }
+            ExpressionKind::While(cond, body) => {
+                let cond_type = self.check_expr(cond)?;
+                if cond_type != Type::Basic(BasicType::Bool) {
+                    return Err(ParseError::mismatched(
+                        Type::Basic(BasicType::Bool),
+                        cond.span,
+                    ));
+                }
+                self.check_expr(body)?
+            }
             ExpressionKind::Block(block) => {
                 self.check_block(block)?;
                 Type::Unit

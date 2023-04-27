@@ -329,6 +329,8 @@ impl<'a> Parser<'a> {
     pub fn parse_expr_unit(&mut self) -> Result<Expression> {
         if self.check_keyword(keyword::If) {
             self.parse_if_expr()
+        } else if self.check_keyword(keyword::While) {
+            self.parse_while_expr()
         } else if matches!(
             self.token.kind,
             TokenKind::BinOp(BinOpToken::Minus)
@@ -537,6 +539,18 @@ impl<'a> Parser<'a> {
             cond,
             then_branch,
             else_branch,
+            start.to(&self.prev_token.span),
+        ))
+    }
+
+    pub fn parse_while_expr(&mut self) -> Result<Expression> {
+        let start = self.token.span;
+        self.expect_keyword(keyword::While)?;
+        let cond = self.parse_expr()?;
+        let block = self.parse_block()?;
+        Ok(Expression::while_expr(
+            cond,
+            block,
             start.to(&self.prev_token.span),
         ))
     }

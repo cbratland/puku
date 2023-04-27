@@ -10,5 +10,6 @@ pub const Return: &str = "return";
 
 pub const If: &str = "if";
 pub const Else: &str = "else";
+pub const While: &str = "while";
 
 pub const Let: &str = "let";
