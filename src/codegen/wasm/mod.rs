@@ -16,6 +16,7 @@ use std::collections::HashMap;
 pub struct WasmCompiler {
     functions: HashMap<String, u8>, // function indexes
     locals: HashMap<String, u8>,    // current locals
+    local_types: Vec<Valtype>,      // types for locals
 }
 
 impl WasmCompiler {
@@ -23,6 +24,7 @@ impl WasmCompiler {
         WasmCompiler {
             functions: HashMap::new(),
             locals: HashMap::new(),
+            local_types: Vec::new(),
         }
     }
 
@@ -95,7 +97,7 @@ impl WasmCompiler {
     ) -> Vec<(Valtype, u32)> {
         // locals, key: name, value: (index, type)
         self.locals = HashMap::new();
-        let mut types: Vec<Valtype> = vec![];
+        self.local_types = vec![];
 
         // define function indexes
         for (func_name, idx) in &self.functions {
@@ -104,7 +106,8 @@ impl WasmCompiler {
 
         for (i, arg) in function.params.iter().enumerate() {
             self.locals.insert(arg.name.clone(), i as u8);
-            types.push(type_to_wasm(&arg.r#type.expect("param has no type")))
+            self.local_types
+                .push(type_to_wasm(&arg.r#type.expect("param has no type")))
         }
 
         // generate statement code
@@ -120,7 +123,7 @@ impl WasmCompiler {
         let mut i64_count = 0;
         let mut f32_count = 0;
         let mut f64_count = 0;
-        for valtype in types.iter() {
+        for valtype in self.local_types.iter() {
             match valtype {
                 Valtype::I32 => i32_count += 1,
                 Valtype::I64 => i64_count += 1,
@@ -158,6 +161,8 @@ impl WasmCompiler {
                 let idx = self.locals.len() as u8;
                 buffer.write_all(&[Opcode::LocalSet as u8, idx]).unwrap();
                 self.locals.insert(local.ident.clone(), idx);
+                self.local_types
+                    .push(type_to_wasm(&local.r#type.expect("missing local type")));
             }
             StatementKind::Expr(expr) => self.gen_expr_code(buffer, expr),
         }
