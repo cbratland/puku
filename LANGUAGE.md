@@ -32,7 +32,7 @@ assign    ::= expr_unit "=" expr_unit
 [x] variable mutability
 [x] function calls
 [x] while loops
-[ ] comparison ops (<, <=, >, >=, etc.)
+[x] comparison ops (<, <=, >, >=, etc.)
 [ ] break and continue keywords
 [ ] else if branches
 [ ] specify variable mutability (semantic analysis?)
