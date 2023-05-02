@@ -46,6 +46,8 @@ impl SymbolTable {
             ("u16", Type::Basic(BasicType::UInt16)),
             ("u32", Type::Basic(BasicType::UInt32)),
             ("u64", Type::Basic(BasicType::UInt64)),
+            ("f32", Type::Basic(BasicType::Float32)),
+            ("f64", Type::Basic(BasicType::Float64)),
         ] {
             symbols.insert(symbol.0.to_string(), Symbol::typ(symbol.1));
         }

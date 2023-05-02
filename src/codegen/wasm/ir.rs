@@ -1,6 +1,7 @@
 // wasm ir
 
 #[repr(u8)]
+#[derive(Debug)]
 pub enum Section {
     Custom = 0,
     Type,
@@ -21,19 +22,20 @@ pub enum Section {
 #[derive(Clone, Copy, Debug)]
 pub enum Valtype {
     I32 = 0x7F,
-    I64,
-    F32,
-    F64,
-    V128,
+    I64 = 0x7E,
+    F32 = 0x7D,
+    F64 = 0x7C,
+    V128 = 0x7B,
 }
 
+#[derive(Debug)]
 pub struct Type {
     pub params: Vec<Valtype>,
     pub returns: Vec<Valtype>,
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ExternalKind {
     Function = 0,
     Table,
@@ -41,11 +43,13 @@ pub enum ExternalKind {
     Global,
 }
 
+#[derive(Debug)]
 pub struct GlobalType {
     pub valtype: Valtype,
     pub mutable: bool,
 }
 
+#[derive(Debug)]
 pub enum ImportKind {
     Function(u32),
     Table(Table),
@@ -64,43 +68,50 @@ impl ImportKind {
     }
 }
 
+#[derive(Debug)]
 pub struct Import {
     pub module_name: String,
     pub name: String,
     pub kind: ImportKind,
 }
 
+#[derive(Debug)]
 pub struct Code {
     pub locals: Vec<(Valtype, u32)>, // variable type, count
     pub body: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub struct Function {
     pub type_index: u8,
     pub code: Code,
 }
 
+#[derive(Debug)]
 pub struct Limits {
     pub min: u32,
     pub max: Option<u32>,
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum RefType {
     Func = 0x70,
     Extern = 0x6F,
 }
 
+#[derive(Debug)]
 pub struct Table {
     pub limits: Limits,
     pub reftype: RefType,
 }
 
+#[derive(Debug)]
 pub struct Memory {
     pub limits: Limits,
 }
 
+#[derive(Debug)]
 pub enum InitExpression {
     I32Const(i32),
     I64Const(i64),
@@ -109,23 +120,27 @@ pub enum InitExpression {
     GlobalGet(u32),
 }
 
+#[derive(Debug)]
 pub struct Global {
     pub global_type: GlobalType,
     pub init: InitExpression,
 }
 
+#[derive(Debug)]
 pub struct Export {
     pub name: String,
     pub kind: ExternalKind,
     pub index: u32,
 }
 
+#[derive(Debug)]
 pub struct Element {
     pub table_offset: u32,
     pub offset: InitExpression,
     pub func_indexes: Vec<u32>,
 }
 
+#[derive(Debug)]
 pub struct Module {
     pub types: Option<Vec<Type>>,
     pub imports: Option<Vec<Import>>,
