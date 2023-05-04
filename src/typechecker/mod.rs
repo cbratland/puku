@@ -133,6 +133,14 @@ impl<'a> TypeChecker<'a> {
             }
             StatementKind::Let(local) => {
                 let var_type = self.check_expr(&mut local.init)?;
+
+                // check unchecked types
+                if let Some(Type::Unchecked(span)) = &local.r#type {
+                    let var_type = self.get_type(*span)?;
+                    local.r#type = Some(var_type);
+                }
+
+                // compare static type with inferred type
                 if let Some(static_type) = &local.r#type {
                     if var_type != *static_type {
                         return Err(ParseError::mismatched(*static_type, local.init.span));
@@ -198,7 +206,19 @@ impl<'a> TypeChecker<'a> {
                 }
             }
             ExpressionKind::Assign(lhs, rhs) => {
-                let lhs_type = self.check_expr(lhs)?;
+                let lhs_type = match &mut **lhs {
+                    AssignmentVariable::Variable(var) => {
+                        let var_type = self.get_type_from_name(&var.name, var.span)?;
+                        var.r#type = Some(var_type);
+                        var_type
+                    }
+                    AssignmentVariable::TypeAscription(ascription) => {
+                        let var_type =
+                            self.get_type_from_name(&ascription.name, ascription.span)?;
+                        ascription.r#type = Some(var_type);
+                        var_type
+                    }
+                };
                 let rhs_type = self.check_expr(rhs)?;
                 if lhs_type != rhs_type {
                     return Err(ParseError::mismatched(lhs_type, rhs.span));

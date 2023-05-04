@@ -6,8 +6,8 @@ mod leb;
 pub use emit::emit;
 
 use crate::ast::{
-    self, Ast, BinaryOperator, Expression, ExpressionKind, ItemKind, Statement, StatementKind,
-    UnaryOperator,
+    self, AssignmentVariable, Ast, BinaryOperator, Expression, ExpressionKind, ItemKind, Statement,
+    StatementKind, UnaryOperator,
 };
 use ir::*;
 use std::collections::HashMap;
@@ -17,6 +17,7 @@ pub struct WasmCompiler {
     functions: HashMap<String, u8>, // function indexes
     locals: HashMap<String, u8>,    // current locals
     local_types: Vec<Valtype>,      // types for locals
+    local_counter: u8,
 }
 
 impl WasmCompiler {
@@ -25,6 +26,7 @@ impl WasmCompiler {
             functions: HashMap::new(),
             locals: HashMap::new(),
             local_types: Vec::new(),
+            local_counter: 0,
         }
     }
 
@@ -98,16 +100,19 @@ impl WasmCompiler {
         // locals, key: name, value: (index, type)
         self.locals = HashMap::new();
         self.local_types = vec![];
+        self.local_counter = 0;
 
         // define function indexes
         for (func_name, idx) in &self.functions {
             self.locals.insert(func_name.clone(), *idx);
         }
 
-        for (i, arg) in function.params.iter().enumerate() {
-            self.locals.insert(arg.name.clone(), i as u8);
+        // add params to locals (for code gen)
+        for arg in function.params.iter() {
+            self.locals.insert(arg.name.clone(), self.local_counter);
             self.local_types
-                .push(type_to_wasm(&arg.r#type.expect("param has no type")))
+                .push(type_to_wasm(&arg.r#type.expect("param has no type")));
+            self.local_counter += 1;
         }
 
         // generate statement code
@@ -132,6 +137,18 @@ impl WasmCompiler {
                 Valtype::V128 => panic!("unsupported type"),
             }
         }
+
+        // remove params from locals
+        for arg in function.params.iter() {
+            match type_to_wasm(&arg.r#type.expect("param has no type")) {
+                Valtype::I32 => i32_count -= 1,
+                Valtype::I64 => i64_count -= 1,
+                Valtype::F32 => f32_count -= 1,
+                Valtype::F64 => f64_count -= 1,
+                Valtype::V128 => panic!("unsupported type"),
+            }
+        }
+
         if i32_count > 0 {
             locals_vec.push((Valtype::I32, i32_count));
         }
@@ -158,9 +175,11 @@ impl WasmCompiler {
             }
             StatementKind::Let(local) => {
                 self.gen_expr_code(buffer, &local.init);
-                let idx = self.locals.len() as u8;
-                buffer.write_all(&[Opcode::LocalSet as u8, idx]).unwrap();
-                self.locals.insert(local.ident.clone(), idx);
+                buffer
+                    .write_all(&[Opcode::LocalSet as u8, self.local_counter])
+                    .unwrap();
+                self.locals.insert(local.ident.clone(), self.local_counter);
+                self.local_counter += 1;
                 self.local_types
                     .push(type_to_wasm(&local.r#type.expect("missing local type")));
             }
@@ -209,7 +228,7 @@ impl WasmCompiler {
                 }
             }
             ExpressionKind::Assign(lhs, rhs) => {
-                if let ExpressionKind::Variable(var) = &lhs.kind {
+                if let AssignmentVariable::Variable(var) = &**lhs {
                     self.gen_expr_code(buffer, rhs);
                     let index = match self.locals.get(&var.name) {
                         Some(idx) => idx,

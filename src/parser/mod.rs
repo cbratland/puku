@@ -163,6 +163,30 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_type_ascription(&mut self) -> Result<TypeAscription> {
+        let start = self.token.span;
+        let name = self
+            .token
+            .identifier(self.src)
+            .ok_or_else(|| ParseError::expected_token(&TokenKind::Identifier, self.token.span))?;
+        self.next();
+        self.expect(&TokenKind::Colon)?;
+        // parameter type
+        if self.token.kind != TokenKind::Identifier {
+            return Err(ParseError::expected_token(
+                &TokenKind::Identifier,
+                self.token.span,
+            ));
+        }
+        self.next();
+
+        Ok(TypeAscription {
+            name: name.to_string(),
+            r#type: Some(Type::Unchecked(self.prev_token.span)),
+            span: start.to(&self.prev_token.span),
+        })
+    }
+
     // parse a function definition
     // [qualifiers] func [name]([params]) -> [ret_type] [block]
     fn parse_func(&mut self) -> Result<Function> {
@@ -189,31 +213,12 @@ impl<'a> Parser<'a> {
 
         // parse params
         self.expect(&TokenKind::OpenDelimiter(Delimiter::Parenthesis))?;
-        let mut params: Vec<Param> = vec![];
+        let mut params: Vec<TypeAscription> = vec![];
         loop {
             if self.eat(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
                 break;
             }
-            let start = self.token.span;
-            // parameter name
-            let param_name = self.token.identifier(self.src).ok_or_else(|| {
-                ParseError::expected_token(&TokenKind::Identifier, self.token.span)
-            })?;
-            self.next();
-            self.expect(&TokenKind::Colon)?;
-            // parameter type
-            if self.token.kind != TokenKind::Identifier {
-                return Err(ParseError::expected_token(
-                    &TokenKind::Identifier,
-                    self.token.span,
-                ));
-            }
-            params.push(Param {
-                name: param_name.to_string(),
-                r#type: Some(Type::Unchecked(self.token.span)),
-                span: start.to(&self.token.span),
-            });
-            self.next();
+            params.push(self.parse_type_ascription()?);
 
             if !self.check(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
                 self.expect(&TokenKind::Comma)?;
@@ -298,9 +303,16 @@ impl<'a> Parser<'a> {
         }
         let assign: Expression = self.parse_expr()?;
         if let ExpressionKind::Assign(lhs, rhs) = assign.kind {
-            if let ExpressionKind::Variable(ident) = lhs.kind {
+            if let AssignmentVariable::Variable(ident) = *lhs {
                 // TODO: include let in span
-                Ok(Statement::declaration(ident.name, *rhs, assign.span))
+                Ok(Statement::declaration(ident.name, None, *rhs, assign.span))
+            } else if let AssignmentVariable::TypeAscription(ident) = *lhs {
+                Ok(Statement::declaration(
+                    ident.name,
+                    ident.r#type,
+                    *rhs,
+                    assign.span,
+                ))
             } else {
                 // TODO: type ascription
                 // expected variable for let identifier
@@ -360,33 +372,77 @@ impl<'a> Parser<'a> {
             let name = self.token.identifier(self.src).ok_or_else(|| {
                 ParseError::expected_token(&TokenKind::Identifier, self.token.span)
             })?;
-            let result = match name {
-                "true" => Expression::literal(ast::LiteralKind::Bool(true), self.token.span),
-                "false" => Expression::literal(ast::LiteralKind::Bool(false), self.token.span),
-                _ => Expression::var(name.to_string(), self.token.span),
-            };
             self.next();
-
-            if self.eat(&TokenKind::OpenDelimiter(Delimiter::Parenthesis))
-            // && matches!(result.kind, ExpressionKind::Variable { .. })
-            {
-                // function call
-                let mut args = vec![];
-                while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
-                    args.push(self.parse_expr()?);
-                    if !self.check(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
-                        self.expect(&TokenKind::Comma)?;
-                    }
+            let variable = match name {
+                "true" => {
+                    return Ok(Expression::literal(
+                        ast::LiteralKind::Bool(true),
+                        self.prev_token.span,
+                    ))
                 }
-                return Ok(Expression::call(result, args, self.token.span));
+                "false" => {
+                    return Ok(Expression::literal(
+                        ast::LiteralKind::Bool(false),
+                        self.prev_token.span,
+                    ))
+                }
+                _ => Variable {
+                    name: name.to_string(),
+                    r#type: None,
+                    span: self.prev_token.span,
+                },
+            };
+
+            if self.eat(&TokenKind::Colon) {
+                // type ascription
+                if self.token.kind != TokenKind::Identifier {
+                    return Err(ParseError::expected_token(
+                        &TokenKind::Identifier,
+                        self.token.span,
+                    ));
+                }
+                self.next();
+                let ty = Type::Unchecked(self.prev_token.span);
+                let ascription = AssignmentVariable::TypeAscription(TypeAscription {
+                    name: variable.name,
+                    r#type: Some(ty),
+                    span: variable.span.to(&self.prev_token.span),
+                });
+
+                // assign
+                self.expect(&TokenKind::Equal)?;
+                let rhs = self.parse_expr()?;
+                let span = variable.span.to(&rhs.span);
+                Ok(Expression::assign(ascription, rhs, span))
             } else if self.eat(&TokenKind::Equal) {
                 // assign
                 let rhs = self.parse_expr()?;
-                let span = result.span.to(&rhs.span);
-                return Ok(Expression::assign(result, rhs, span));
+                let span = variable.span.to(&rhs.span);
+                Ok(Expression::assign(
+                    AssignmentVariable::Variable(variable),
+                    rhs,
+                    span,
+                ))
             } else {
-                // variable
-                Ok(result)
+                let span = variable.span;
+                let expr = Expression {
+                    kind: ExpressionKind::Variable(variable),
+                    span,
+                };
+                if self.eat(&TokenKind::OpenDelimiter(Delimiter::Parenthesis)) {
+                    // function call
+                    let mut args = vec![];
+                    while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
+                        args.push(self.parse_expr()?);
+                        if !self.check(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
+                            self.expect(&TokenKind::Comma)?;
+                        }
+                    }
+                    return Ok(Expression::call(expr, args, self.token.span));
+                } else {
+                    // variable
+                    Ok(expr)
+                }
             }
         } else if let TokenKind::Literal(kind) = &self.token.kind {
             // literal

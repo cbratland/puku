@@ -30,6 +30,7 @@ pub enum Type {
 pub struct Variable {
     pub name: String,
     pub r#type: Option<Type>,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq)]
@@ -99,12 +100,12 @@ pub struct Statement {
 }
 
 impl Statement {
-    pub fn declaration(ident: String, init: Expression, span: Span) -> Self {
+    pub fn declaration(ident: String, r#type: Option<Type>, init: Expression, span: Span) -> Self {
         Self {
             kind: StatementKind::Let(Box::new(Local {
                 mutable: false,
                 ident,
-                r#type: None,
+                r#type,
                 init,
             })),
             span,
@@ -136,9 +137,15 @@ pub struct Local {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum AssignmentVariable {
+    Variable(Variable),
+    TypeAscription(TypeAscription),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum ExpressionKind {
     // assign `x = a`
-    Assign(Box<Expression>, Box<Expression>),
+    Assign(Box<AssignmentVariable>, Box<Expression>),
     // assign with an operator e.g. `x += a`
     // AssignOp(BinOp, Box<Expression>, Box<Expression>),
     // function call with params
@@ -202,7 +209,11 @@ impl Expression {
 
     pub fn var(name: String, span: Span) -> Self {
         Self {
-            kind: ExpressionKind::Variable(Variable { name, r#type: None }),
+            kind: ExpressionKind::Variable(Variable {
+                name,
+                r#type: None,
+                span,
+            }),
             span,
         }
     }
@@ -214,7 +225,7 @@ impl Expression {
         }
     }
 
-    pub fn assign(lhs: Expression, rhs: Expression, span: Span) -> Self {
+    pub fn assign(lhs: AssignmentVariable, rhs: Expression, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Assign(Box::new(lhs), Box::new(rhs)),
             span,
@@ -269,7 +280,7 @@ impl Expression {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Param {
+pub struct TypeAscription {
     pub name: String,
     pub r#type: Option<Type>,
     pub span: Span,
@@ -292,7 +303,7 @@ pub struct FunctionAttributes {
 pub struct Function {
     pub attrs: FunctionAttributes,
     pub name: String, // todo: don't use String?
-    pub params: Vec<Param>,
+    pub params: Vec<TypeAscription>,
     pub return_type: Option<Type>,
     pub block: Option<Block>,
 }
@@ -368,12 +379,6 @@ pub struct UnaryOperation {
     pub expr: Expression,
     pub operator: UnaryOperator,
     pub r#type: Option<Type>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Assignment {
-    pub left: Expression,
-    pub right: Expression,
 }
 
 #[derive(Debug, PartialEq)]
