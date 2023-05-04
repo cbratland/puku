@@ -45,19 +45,16 @@ impl<'a> TypeChecker<'a> {
 
             // parse function return type
             let return_type = if let Some(Type::Unchecked(span)) = &func.return_type {
-                Some(self.get_type(*span)?)
+                self.get_type(*span)?
+            } else if let Some(ret) = func.return_type {
+                ret
             } else {
-                func.return_type
+                Type::Unit
             };
 
             // add function as symbol
-            self.symbol_table.insert(
-                &func.name,
-                Symbol::func(
-                    func.name.clone(),
-                    return_type.expect("function return type not defined"),
-                ),
-            );
+            self.symbol_table
+                .insert(&func.name, Symbol::func(func.name.clone(), return_type));
         }
         for item in &mut ast.items {
             self.check_item(item)?;

@@ -19,6 +19,7 @@ pub struct WasmCompiler {
     local_types: Vec<Valtype>,      // types for locals
     local_counter: u8,
     level: u8,
+    start: Option<u32>,
 }
 
 impl WasmCompiler {
@@ -29,6 +30,7 @@ impl WasmCompiler {
             local_types: Vec::new(),
             local_counter: 0,
             level: 0,
+            start: None,
         }
     }
 
@@ -66,6 +68,10 @@ impl WasmCompiler {
                 },
             };
 
+            if function.name == "start" {
+                self.start = Some(functions.len() as u32);
+            }
+
             // generate function code
             let mut code: Vec<u8> = vec![];
             let locals = self.gen_function_code(&mut code, &function);
@@ -75,21 +81,28 @@ impl WasmCompiler {
                 code: Code { locals, body: code },
             };
 
-            let export = Export {
-                name: function.name.clone(),
-                kind: ExternalKind::Function,
-                index: functions.len() as u32,
-            };
+            if function.attrs.export != ast::Export::None {
+                let name = match &function.attrs.export {
+                    ast::Export::Explicit(name) => name.clone(),
+                    _ => function.name.clone(),
+                };
+                let export = Export {
+                    name,
+                    kind: ExternalKind::Function,
+                    index: functions.len() as u32,
+                };
+                exports.push(export);
+            }
 
             types.push(func_type);
             functions.push(ir_function);
-            exports.push(export);
         }
 
         Module {
             types: Some(types),
             functions: Some(functions),
             exports: Some(exports),
+            start: self.start,
             ..Default::default()
         }
     }

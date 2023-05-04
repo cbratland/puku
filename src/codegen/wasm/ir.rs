@@ -150,6 +150,7 @@ pub struct Module {
     pub globals: Option<Vec<Global>>,
     pub exports: Option<Vec<Export>>,
     pub elements: Option<Vec<Element>>,
+    pub start: Option<u32>, // function index
 }
 
 impl Default for Module {
@@ -166,6 +167,7 @@ impl Default for Module {
             globals: None,
             exports: None,
             elements: None,
+            start: None,
         }
     }
 }

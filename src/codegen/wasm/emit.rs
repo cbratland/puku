@@ -174,6 +174,15 @@ pub fn emit<W: std::io::Write + std::io::Seek>(
         }
     }
 
+    // start section
+    if let Some(start) = module.start {
+        buffer.write_all(&[Section::Start as u8])?;
+
+        let header_offset = reserve_header(buffer)?;
+        leb128::write::unsigned(buffer, start as u64)?;
+        write_header(buffer, header_offset)?;
+    }
+
     // code section
     if let Some(functions) = module.functions {
         if !functions.is_empty() {

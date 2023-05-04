@@ -26,8 +26,9 @@ if        ::= "if" expr block ("else" (if | block))?
 while     ::= "while" expr block
 group     ::= "(" expr ")"
 literal   ::= NUMBER | STRING | "true" | "false"
-func_call ::= IDENT "(" (expr ",")* ")"
-assign    ::= expr_unit "=" expr_unit
+func_call ::= IDENT "(" (expr ",")* ")
+assign    ::= expr_unit "=" expr_unit"
+assignop  ::= expr_unit binop "=" expr_unit
 ```
 
 # roadmap
@@ -38,7 +39,7 @@ assign    ::= expr_unit "=" expr_unit
 [x] break and continue keywords
 [x] else if branches
 [x] operator equals (+=, -=, etc.)
-[ ] start function
+[x] start function
 [ ] import functions
 [ ] specify variable mutability (semantic analysis?)
 [ ] evaluatable blocks (blocks return a value)
