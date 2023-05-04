@@ -7,9 +7,11 @@ func_arg ::= type_ascription ","
 
 type_ascription ::= IDENT ":" TYPE
 
-stmt        ::= declaration | return | expr
+stmt        ::= declaration | return | break | continue | expr
 declaration ::= "let" (IDENT | type_ascription) "=" expr
 return      ::= "return" expr
+break       ::= "break"
+continue    ::= "continue"
 block       ::= "{" (stmt)* "}"
 
 expr      ::= expr_unit | binary
@@ -33,8 +35,9 @@ assign    ::= expr_unit "=" expr_unit
 [x] function calls
 [x] while loops
 [x] comparison ops (<, <=, >, >=, etc.)
-[ ] break and continue keywords
+[x] break and continue keywords
 [ ] else if branches
+[ ] operator equals (+=, -=, etc.)
 [ ] specify variable mutability (semantic analysis?)
 [ ] evaluatable blocks (blocks return a value)
 [ ] optionals

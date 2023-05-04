@@ -90,6 +90,8 @@ pub enum StatementKind {
     Let(Box<Local>),
     // return expr?
     Return(Option<Box<Expression>>),
+    Break,
+    Continue,
     Expr(Box<Expression>),
 }
 
@@ -115,6 +117,20 @@ impl Statement {
     pub fn ret(expr: Option<Expression>, span: Span) -> Self {
         Self {
             kind: StatementKind::Return(expr.map(Box::new)),
+            span,
+        }
+    }
+
+    pub fn br(span: Span) -> Self {
+        Self {
+            kind: StatementKind::Break,
+            span,
+        }
+    }
+
+    pub fn cont(span: Span) -> Self {
+        Self {
+            kind: StatementKind::Continue,
             span,
         }
     }

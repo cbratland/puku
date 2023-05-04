@@ -159,6 +159,7 @@ impl<'a> TypeChecker<'a> {
                 Ok(Type::Unit)
             }
             StatementKind::Expr(expr) => self.check_expr(expr),
+            StatementKind::Break | StatementKind::Continue => Ok(Type::Unit),
         }
     }
 

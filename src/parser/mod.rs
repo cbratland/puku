@@ -280,6 +280,12 @@ impl<'a> Parser<'a> {
         } else if self.check_keyword(keyword::Return) {
             // return [expr]
             self.parse_return()
+        } else if self.eat_keyword(keyword::Break) {
+            // break
+            Ok(Statement::br(self.prev_token.span))
+        } else if self.eat_keyword(keyword::Continue) {
+            // continue
+            Ok(Statement::cont(self.prev_token.span))
         } else {
             let expr = self.parse_expr()?;
             Ok(Statement::expr(expr))
@@ -314,7 +320,6 @@ impl<'a> Parser<'a> {
                     assign.span,
                 ))
             } else {
-                // TODO: type ascription
                 // expected variable for let identifier
                 panic!("expected variable after let identifier");
             }

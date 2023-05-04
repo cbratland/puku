@@ -18,6 +18,7 @@ pub struct WasmCompiler {
     locals: HashMap<String, u8>,    // current locals
     local_types: Vec<Valtype>,      // types for locals
     local_counter: u8,
+    level: u8,
 }
 
 impl WasmCompiler {
@@ -27,6 +28,7 @@ impl WasmCompiler {
             locals: HashMap::new(),
             local_types: Vec::new(),
             local_counter: 0,
+            level: 0,
         }
     }
 
@@ -101,6 +103,7 @@ impl WasmCompiler {
         self.locals = HashMap::new();
         self.local_types = vec![];
         self.local_counter = 0;
+        self.level = 0;
 
         // define function indexes
         for (func_name, idx) in &self.functions {
@@ -184,6 +187,16 @@ impl WasmCompiler {
                     .push(type_to_wasm(&local.r#type.expect("missing local type")));
             }
             StatementKind::Expr(expr) => self.gen_expr_code(buffer, expr),
+            StatementKind::Break => {
+                buffer
+                    .write_all(&[Opcode::Br as u8, self.level - 1])
+                    .unwrap();
+            }
+            StatementKind::Continue => {
+                buffer
+                    .write_all(&[Opcode::Br as u8, self.level - 2])
+                    .unwrap();
+            }
         }
     }
 
@@ -390,6 +403,7 @@ impl WasmCompiler {
             ExpressionKind::If(if_expr) => {
                 self.gen_expr_code(buffer, &if_expr.cond);
                 buffer.write_all(&[Opcode::If as u8, 0x40]).unwrap();
+                self.level += 1;
                 for stmt in &if_expr.then_branch.statements {
                     self.gen_stmt_code(buffer, stmt);
                 }
@@ -398,27 +412,33 @@ impl WasmCompiler {
                     self.gen_expr_code(buffer, else_branch);
                 }
                 buffer.write_all(&[Opcode::End as u8]).unwrap();
+                self.level -= 1;
             }
             ExpressionKind::While(cond, body) => {
                 buffer.write_all(&[Opcode::Block as u8, 0x40]).unwrap();
+                self.level += 1;
 
                 buffer.write_all(&[Opcode::Loop as u8, 0x40]).unwrap();
+                self.level += 1;
+
                 // check condition and break if false
                 self.gen_expr_code(buffer, cond);
                 buffer
-                    .write_all(&[Opcode::I32Eqz as u8, Opcode::BrIf as u8])
+                    .write_all(&[Opcode::I32Eqz as u8, Opcode::BrIf as u8, self.level - 1])
                     .unwrap();
-                leb128::write::signed(buffer, 1).unwrap();
 
                 // body block
                 self.gen_expr_code(buffer, body);
 
                 // loop to start
-                buffer.write_all(&[Opcode::Br as u8]).unwrap();
-                leb128::write::signed(buffer, 0).unwrap();
+                buffer
+                    .write_all(&[Opcode::Br as u8, self.level - 2])
+                    .unwrap();
                 buffer.write_all(&[Opcode::End as u8]).unwrap();
+                self.level -= 1;
 
                 buffer.write_all(&[Opcode::End as u8]).unwrap();
+                self.level -= 1;
             }
             ExpressionKind::Block(block) => {
                 for stmt in &block.statements {
