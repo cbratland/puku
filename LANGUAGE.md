@@ -22,7 +22,7 @@ binop     ::= "+" | "-" | "*" | "/"
 unary     ::= uop expr
 uop       ::= "-" | "!"
 
-if        ::= "if" expr block ("else" block)?
+if        ::= "if" expr block ("else" (if | block))?
 while     ::= "while" expr block
 group     ::= "(" expr ")"
 literal   ::= NUMBER | STRING | "true" | "false"
@@ -36,8 +36,10 @@ assign    ::= expr_unit "=" expr_unit
 [x] while loops
 [x] comparison ops (<, <=, >, >=, etc.)
 [x] break and continue keywords
-[ ] else if branches
-[ ] operator equals (+=, -=, etc.)
+[x] else if branches
+[x] operator equals (+=, -=, etc.)
+[ ] start function
+[ ] import functions
 [ ] specify variable mutability (semantic analysis?)
 [ ] evaluatable blocks (blocks return a value)
 [ ] optionals

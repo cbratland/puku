@@ -335,8 +335,28 @@ impl<'a> Parser<'a> {
     pub fn parse_expr(&mut self) -> Result<Expression> {
         let left = self.parse_expr_unit()?;
         if self.token.is_bin_op() {
-            let result = self.parse_binary_expr(left)?;
-            result.ok_or_else(ParseError::unhandled)
+            // TODO: this can be improved
+            if self.peek(1).kind == TokenKind::Equal {
+                let operator = self.token_to_binop(&self.token.kind)?;
+                self.next(); // operator
+                self.next(); // equal
+                let right = self.parse_expr()?;
+                let span = left.span.to(&right.span);
+                if let ExpressionKind::Variable(var) = left.kind {
+                    let name = var.name.clone();
+                    let var_span = var.span;
+                    Ok(Expression::assign(
+                        AssignmentVariable::Variable(var),
+                        Expression::binop(Expression::var(name, var_span), right, operator),
+                        span,
+                    ))
+                } else {
+                    Err(ParseError::unhandled())
+                }
+            } else {
+                let result = self.parse_binary_expr(left)?;
+                result.ok_or_else(ParseError::unhandled)
+            }
         } else {
             Ok(left)
         }
@@ -479,35 +499,39 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn token_to_binop(&self, token: &TokenKind) -> Result<BinaryOperator> {
+        match &token {
+            TokenKind::BinOp(op) => match op {
+                BinOpToken::Plus => Ok(BinaryOperator::Add),
+                BinOpToken::Minus => Ok(BinaryOperator::Sub),
+                BinOpToken::Star => Ok(BinaryOperator::Mul),
+                BinOpToken::Slash => Ok(BinaryOperator::Div),
+                BinOpToken::Percent => Ok(BinaryOperator::Mod),
+                BinOpToken::Caret => Ok(BinaryOperator::Caret),
+                BinOpToken::And => Ok(BinaryOperator::And),
+                BinOpToken::Pipe => Ok(BinaryOperator::Or),
+                BinOpToken::ShiftLeft => Ok(BinaryOperator::ShiftLeft),
+                BinOpToken::ShiftRight => Ok(BinaryOperator::ShiftRight),
+            },
+            TokenKind::LThan => Ok(BinaryOperator::Less),
+            TokenKind::LThanEqual => Ok(BinaryOperator::LessOrEqual),
+            TokenKind::GThan => Ok(BinaryOperator::Greater),
+            TokenKind::GThanEqual => Ok(BinaryOperator::GreaterOrEqual),
+            TokenKind::EqualEqual => Ok(BinaryOperator::EqualEqual),
+            TokenKind::NotEqual => Ok(BinaryOperator::NotEqual),
+            TokenKind::AndAnd => Ok(BinaryOperator::AndAnd),
+            TokenKind::PipePipe => Ok(BinaryOperator::OrOr),
+            _ => Err(ParseError::unhandled()),
+        }
+    }
+
     // parse binary expression
     // expr [op] expr
     pub fn parse_binary_expr(&mut self, left: Expression) -> Result<Option<Expression>> {
         let mut op_stack: Vec<(BinaryOperator, u8)> = vec![];
         let mut expr_stack = vec![left];
         while self.token.is_bin_op() {
-            let operator = match &self.token.kind {
-                TokenKind::BinOp(op) => match op {
-                    BinOpToken::Plus => BinaryOperator::Add,
-                    BinOpToken::Minus => BinaryOperator::Sub,
-                    BinOpToken::Star => BinaryOperator::Mul,
-                    BinOpToken::Slash => BinaryOperator::Div,
-                    BinOpToken::Percent => BinaryOperator::Mod,
-                    BinOpToken::Caret => BinaryOperator::Caret,
-                    BinOpToken::And => BinaryOperator::And,
-                    BinOpToken::Pipe => BinaryOperator::Or,
-                    BinOpToken::ShiftLeft => BinaryOperator::ShiftLeft,
-                    BinOpToken::ShiftRight => BinaryOperator::ShiftRight,
-                },
-                TokenKind::LThan => BinaryOperator::Less,
-                TokenKind::LThanEqual => BinaryOperator::LessOrEqual,
-                TokenKind::GThan => BinaryOperator::Greater,
-                TokenKind::GThanEqual => BinaryOperator::GreaterOrEqual,
-                TokenKind::EqualEqual => BinaryOperator::EqualEqual,
-                TokenKind::NotEqual => BinaryOperator::NotEqual,
-                TokenKind::AndAnd => BinaryOperator::AndAnd,
-                TokenKind::PipePipe => BinaryOperator::OrOr,
-                _ => panic!("unknown binop {:?}", self.token.kind),
-            };
+            let operator = self.token_to_binop(&self.token.kind)?;
             self.next();
             let precendence = operator.precedence();
             _ = Self::parse_precedence(
