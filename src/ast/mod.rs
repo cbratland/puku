@@ -313,8 +313,9 @@ pub enum Export {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Import {
     None,
-    Implicit,         // import
-    Explicit(String), // import("whatever")
+    Implicit,                 // import
+    Namespace(String),        // import("namespace")
+    Explicit(String, String), // import("namespace", "whatever")
 }
 
 #[derive(Debug, PartialEq, Eq)]

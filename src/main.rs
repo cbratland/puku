@@ -74,7 +74,7 @@ fn main() {
         &mut store,
         &module,
         &wasmer::imports! {
-            "env" => {
+            "std" => {
                 "print_int" => native,
             }
         },

@@ -41,7 +41,9 @@ assignop  ::= expr_unit binop "=" expr_unit
 [x] operator equals (+=, -=, etc.)
 [x] start function
 [x] import functions
-[ ] import namespace and export name specification
+[x] import namespace and export name specification
+[ ] plain loops
+[ ] for loops
 [ ] specify variable mutability (semantic analysis?)
 [ ] evaluatable blocks (blocks return a value)
 [ ] optionals

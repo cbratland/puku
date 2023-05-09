@@ -192,13 +192,67 @@ impl<'a> Parser<'a> {
     fn parse_func(&mut self) -> Result<Function> {
         // parse qualifiers
         let export = if self.eat_keyword(keyword::Export) {
-            Export::Implicit
+            if self.eat(&TokenKind::OpenDelimiter(Delimiter::Parenthesis)) {
+                // parse export name
+                if let TokenKind::Literal(LiteralKind::String) = self.token.kind {
+                    self.next();
+                    let fn_name = {
+                        let str = self.prev_token.span.in_src(self.src);
+                        str[1..str.len() - 1].to_string() // remove quotes
+                    };
+                    self.expect(&TokenKind::CloseDelimiter(Delimiter::Parenthesis))?;
+                    Export::Explicit(fn_name)
+                } else {
+                    return Err(ParseError::expected_token(
+                        &TokenKind::Literal(LiteralKind::String),
+                        self.token.span,
+                    ));
+                }
+            } else {
+                Export::Implicit
+            }
         } else {
             Export::None
         };
-        // todo: import
+
         let import = if self.eat_keyword(keyword::Import) {
-            Import::Implicit
+            if self.eat(&TokenKind::OpenDelimiter(Delimiter::Parenthesis)) {
+                // parse namespace
+                if let TokenKind::Literal(LiteralKind::String) = self.token.kind {
+                    self.next();
+                    let namespace = {
+                        let str = self.prev_token.span.in_src(self.src);
+                        str[1..str.len() - 1].to_string() // remove quotes
+                    };
+                    if self.eat(&TokenKind::CloseDelimiter(Delimiter::Parenthesis)) {
+                        Import::Namespace(namespace)
+                    } else {
+                        self.expect(&TokenKind::Comma)?;
+                        // parse import name
+                        if let TokenKind::Literal(LiteralKind::String) = self.token.kind {
+                            self.next();
+                            let func_name = {
+                                let str = self.prev_token.span.in_src(self.src);
+                                str[1..str.len() - 1].to_string() // remove quotes
+                            };
+                            self.expect(&TokenKind::CloseDelimiter(Delimiter::Parenthesis))?;
+                            Import::Explicit(namespace, func_name)
+                        } else {
+                            return Err(ParseError::expected_token(
+                                &TokenKind::Literal(LiteralKind::String),
+                                self.token.span,
+                            ));
+                        }
+                    }
+                } else {
+                    return Err(ParseError::expected_token(
+                        &TokenKind::Literal(LiteralKind::String),
+                        self.token.span,
+                    ));
+                }
+            } else {
+                Import::Implicit
+            }
         } else {
             Import::None
         };
@@ -655,10 +709,13 @@ impl<'a> Parser<'a> {
     fn check_func(&self) -> bool {
         let qualifiers = &[keyword::Export, keyword::Import];
         self.check_keyword(keyword::Func)
-            || qualifiers.iter().any(|&kw| self.check_keyword(kw)) && {
-                let token = self.peek(1);
-                token.is_keyword(self.src, keyword::Func)
-            }
+            || (qualifiers.iter().any(|&kw| self.check_keyword(kw))
+                && self.peek(1).is_keyword(self.src, keyword::Func))
+            // this should probably be checked better
+            || matches!(
+                self.peek(1).kind,
+                TokenKind::OpenDelimiter(Delimiter::Parenthesis)
+            )
     }
 }
 

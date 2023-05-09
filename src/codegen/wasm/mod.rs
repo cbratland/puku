@@ -34,41 +34,6 @@ impl WasmCompiler {
         }
     }
 
-    fn process_type(&self, function: &ast::Function, types: &mut Vec<ir::Type>) {
-        let func_type = ir::Type {
-            params: function
-                .params
-                .iter()
-                .map(|e| type_to_wasm(&e.r#type.expect("function param has no type")))
-                .collect::<Vec<Valtype>>(),
-            returns: if let Some(return_type) = function.return_type {
-                vec![type_to_wasm(&return_type)]
-            } else {
-                vec![]
-            },
-        };
-        types.push(func_type);
-    }
-
-    fn process_function(
-        &mut self,
-        function: &ast::Function,
-        types: &mut Vec<ir::Type>,
-    ) -> ir::Function {
-        // generate function code
-        let mut code: Vec<u8> = vec![];
-        let locals = self.gen_function_code(&mut code, &function);
-
-        let ir_function = Function {
-            type_index: types.len() as u8,
-            code: Code { locals, body: code },
-        };
-
-        self.process_type(function, types);
-
-        ir_function
-    }
-
     // todo: make this better
     pub fn compile(&mut self, ast: Ast) -> Module {
         let mut types: Vec<ir::Type> = vec![];
@@ -80,9 +45,9 @@ impl WasmCompiler {
         self.functions = ast
             .items
             .iter()
-            .filter_map(|i| {
+            .map(|i| {
                 let ItemKind::Function(function) = &i.kind;
-                Some(function.name.clone())
+                function.name.clone()
             })
             .enumerate()
             .map(|(i, name)| (name, i as u8))
@@ -95,12 +60,13 @@ impl WasmCompiler {
             let ItemKind::Function(function) = &item.kind;
 
             if function.attrs.import != ast::Import::None {
-                let name = match &function.attrs.import {
-                    ast::Import::Explicit(name) => name.clone(),
-                    _ => function.name.clone(),
+                let (module_name, name) = match &function.attrs.import {
+                    ast::Import::Explicit(namespace, name) => (namespace.clone(), name.clone()),
+                    ast::Import::Namespace(namespace) => (namespace.clone(), function.name.clone()),
+                    _ => (String::from("env"), function.name.clone()), // default namespace env
                 };
                 let import = Import {
-                    module_name: "env".to_string(),
+                    module_name,
                     name,
                     kind: ImportKind::Function(types.len() as u32),
                 };
@@ -144,6 +110,41 @@ impl WasmCompiler {
             start: self.start,
             ..Default::default()
         }
+    }
+
+    fn process_type(&self, function: &ast::Function, types: &mut Vec<ir::Type>) {
+        let func_type = ir::Type {
+            params: function
+                .params
+                .iter()
+                .map(|e| type_to_wasm(&e.r#type.expect("function param has no type")))
+                .collect::<Vec<Valtype>>(),
+            returns: if let Some(return_type) = function.return_type {
+                vec![type_to_wasm(&return_type)]
+            } else {
+                vec![]
+            },
+        };
+        types.push(func_type);
+    }
+
+    fn process_function(
+        &mut self,
+        function: &ast::Function,
+        types: &mut Vec<ir::Type>,
+    ) -> ir::Function {
+        // generate function code
+        let mut code: Vec<u8> = vec![];
+        let locals = self.gen_function_code(&mut code, function);
+
+        let ir_function = Function {
+            type_index: types.len() as u8,
+            code: Code { locals, body: code },
+        };
+
+        self.process_type(function, types);
+
+        ir_function
     }
 
     fn gen_function_code<W: std::io::Write>(
