@@ -15,7 +15,7 @@ continue    ::= "continue"
 block       ::= "{" (stmt)* "}"
 
 expr      ::= expr_unit | binary
-expr_unit ::= if | while | block | unary | group | literal | func_call | IDENT | assign
+expr_unit ::= if | loop | while | block | unary | group | literal | func_call | IDENT | assign
 
 binary    ::= expr_unit binop expr_unit
 binop     ::= "+" | "-" | "*" | "/"
@@ -23,6 +23,7 @@ unary     ::= uop expr
 uop       ::= "-" | "!"
 
 if        ::= "if" expr block ("else" (if | block))?
+loop      ::= "loop" block
 while     ::= "while" expr block
 group     ::= "(" expr ")"
 literal   ::= NUMBER | STRING | "true" | "false"
@@ -32,18 +33,18 @@ assignop  ::= expr_unit binop "=" expr_unit
 ```
 
 # roadmap
-[x] variable mutability
-[x] function calls
-[x] while loops
-[x] comparison ops (<, <=, >, >=, etc.)
-[x] break and continue keywords
-[x] else if branches
-[x] operator equals (+=, -=, etc.)
-[x] start function
-[x] import functions
-[x] import namespace and export name specification
-[ ] plain loops
-[ ] for loops
-[ ] specify variable mutability (semantic analysis?)
-[ ] evaluatable blocks (blocks return a value)
-[ ] optionals
+- [x] variable mutability
+- [x] function calls
+- [x] while loops
+- [x] comparison ops (<, <=, >, >=, etc.)
+- [x] break and continue keywords
+- [x] else if branches
+- [x] operator equals (+=, -=, etc.)
+- [x] start function
+- [x] import functions
+- [x] import namespace and export name specification
+- [x] plain loops
+- [ ] for loops
+- [ ] specify variable mutability (semantic analysis?)
+- [ ] evaluatable blocks (blocks return a value)
+- [ ] optionals

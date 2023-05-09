@@ -467,6 +467,25 @@ impl WasmCompiler {
                 buffer.write_all(&[Opcode::End as u8]).unwrap();
                 self.level -= 1;
             }
+            ExpressionKind::Loop(body) => {
+                buffer.write_all(&[Opcode::Block as u8, 0x40]).unwrap();
+                self.level += 1;
+
+                buffer.write_all(&[Opcode::Loop as u8, 0x40]).unwrap();
+                self.level += 1;
+
+                self.gen_expr_code(buffer, body);
+
+                // loop to start
+                buffer
+                    .write_all(&[Opcode::Br as u8, self.level - 2])
+                    .unwrap();
+                buffer.write_all(&[Opcode::End as u8]).unwrap();
+                self.level -= 1;
+
+                buffer.write_all(&[Opcode::End as u8]).unwrap();
+                self.level -= 1;
+            }
             ExpressionKind::While(cond, body) => {
                 buffer.write_all(&[Opcode::Block as u8, 0x40]).unwrap();
                 self.level += 1;

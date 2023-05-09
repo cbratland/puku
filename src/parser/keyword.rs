@@ -10,6 +10,7 @@ pub const Continue: &str = "continue";
 
 pub const If: &str = "if";
 pub const Else: &str = "else";
+pub const Loop: &str = "loop";
 pub const While: &str = "while";
 
 pub const Let: &str = "let";

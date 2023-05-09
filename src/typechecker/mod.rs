@@ -256,6 +256,7 @@ impl<'a> TypeChecker<'a> {
                 // todo: allow ifs to evaluate to a type
                 Type::Unit
             }
+            ExpressionKind::Loop(body) => self.check_expr(body)?,
             ExpressionKind::While(cond, body) => {
                 let cond_type = self.check_expr(cond)?;
                 if cond_type != Type::Basic(BasicType::Bool) {
