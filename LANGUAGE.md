@@ -40,7 +40,8 @@ assignop  ::= expr_unit binop "=" expr_unit
 [x] else if branches
 [x] operator equals (+=, -=, etc.)
 [x] start function
-[ ] import functions
+[x] import functions
+[ ] import namespace and export name specification
 [ ] specify variable mutability (semantic analysis?)
 [ ] evaluatable blocks (blocks return a value)
 [ ] optionals

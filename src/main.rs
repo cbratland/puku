@@ -61,16 +61,30 @@ fn main() {
     let metadata = std::fs::metadata("./tmp.wasm").expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
     file.read_exact(&mut buffer).expect("file read failed");
-    println!("bytes: {:02X?}", &buffer);
+    // println!("bytes: {:02X?}", &buffer);
 
     // run wasm
-    let store = wasmer::Store::default();
+    let mut store = wasmer::Store::default();
     let module = wasmer::Module::new(&store, &buffer).expect("invalid wasm generated");
-    let instance = wasmer::Instance::new(&module, &wasmer::imports! {}).unwrap();
-    if let Ok(add) = instance.exports.get_function("add") {
+
+    let native = wasmer::Function::new_typed(&mut store, |int: i32| {
+        println!("{}", int);
+    });
+    let instance = wasmer::Instance::new(
+        &mut store,
+        &module,
+        &wasmer::imports! {
+            "env" => {
+                "print_int" => native,
+            }
+        },
+    )
+    .unwrap();
+
+    if let Ok(add) = instance.exports.get::<wasmer::Function>("add") {
         println!(
             "add(1,2): {}",
-            add.call(&[wasmer::Value::I32(1), wasmer::Value::I32(2)])
+            add.call(&mut store, &[wasmer::Value::I32(1), wasmer::Value::I32(2)])
                 .unwrap()[0]
                 .i32()
                 .unwrap()

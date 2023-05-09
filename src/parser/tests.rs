@@ -26,7 +26,8 @@ fn empty_function() {
             items: vec![Item {
                 kind: ItemKind::Function(Box::new(Function {
                     attrs: FunctionAttributes {
-                        export: Export::None
+                        export: Export::None,
+                        import: Import::None
                     },
                     name: String::from("test"),
                     return_type: None,

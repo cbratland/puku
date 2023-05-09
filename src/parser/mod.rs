@@ -156,7 +156,7 @@ impl<'a> Parser<'a> {
     fn parse_item_kind(&mut self) -> Result<Option<ItemKind>> {
         if self.check_func() {
             let func = self.parse_func()?;
-            println!("parsed func: {:#?}", func);
+            //println!("parsed func: {:#?}", func);
             Ok(Some(ItemKind::Function(Box::new(func))))
         } else {
             Ok(None)
@@ -197,6 +197,15 @@ impl<'a> Parser<'a> {
             Export::None
         };
         // todo: import
+        let import = if self.eat_keyword(keyword::Import) {
+            Import::Implicit
+        } else {
+            Import::None
+        };
+
+        if export != Export::None && import != Import::None {
+            panic!("can't have both export and import qualifiers");
+        }
 
         if !self.eat_keyword(keyword::Func) {
             return Err(ParseError::unhandled());
@@ -247,7 +256,7 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Function {
-            attrs: FunctionAttributes { export },
+            attrs: FunctionAttributes { export, import },
             name: name.to_string(),
             params,
             return_type: return_type.map(Type::Unchecked),

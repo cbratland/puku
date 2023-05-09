@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 leb128 = "0.2.5"
 unicode-xid = "0.2.4"
-wasmer = "2.3.0"
+wasmer = "3.3.0"
 bytecount = "0.6"

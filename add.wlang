@@ -1,3 +1,9 @@
+import func print_int(a: i32)
+
+func start() {
+	print_int(add(1, 2)) // 3
+}
+
 export func add(a: i32, b: i32) -> i32 {
 	return a + b
 }

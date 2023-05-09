@@ -311,8 +311,16 @@ pub enum Export {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum Import {
+    None,
+    Implicit,         // import
+    Explicit(String), // import("whatever")
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct FunctionAttributes {
     pub export: Export,
+    pub import: Import,
 }
 
 #[derive(Debug, PartialEq)]

@@ -34,11 +34,47 @@ impl WasmCompiler {
         }
     }
 
+    fn process_type(&self, function: &ast::Function, types: &mut Vec<ir::Type>) {
+        let func_type = ir::Type {
+            params: function
+                .params
+                .iter()
+                .map(|e| type_to_wasm(&e.r#type.expect("function param has no type")))
+                .collect::<Vec<Valtype>>(),
+            returns: if let Some(return_type) = function.return_type {
+                vec![type_to_wasm(&return_type)]
+            } else {
+                vec![]
+            },
+        };
+        types.push(func_type);
+    }
+
+    fn process_function(
+        &mut self,
+        function: &ast::Function,
+        types: &mut Vec<ir::Type>,
+    ) -> ir::Function {
+        // generate function code
+        let mut code: Vec<u8> = vec![];
+        let locals = self.gen_function_code(&mut code, &function);
+
+        let ir_function = Function {
+            type_index: types.len() as u8,
+            code: Code { locals, body: code },
+        };
+
+        self.process_type(function, types);
+
+        ir_function
+    }
+
     // todo: make this better
     pub fn compile(&mut self, ast: Ast) -> Module {
         let mut types: Vec<ir::Type> = vec![];
         let mut functions: Vec<ir::Function> = vec![];
         let mut exports: Vec<ir::Export> = vec![];
+        let mut imports: Vec<ir::Import> = vec![];
 
         // assign function names to indexes
         self.functions = ast
@@ -52,34 +88,36 @@ impl WasmCompiler {
             .map(|(i, name)| (name, i as u8))
             .collect::<HashMap<String, u8>>();
 
+        let mut non_imports: Vec<&ast::Function> = Vec::new();
+
+        // process imports
         for item in &ast.items {
             let ItemKind::Function(function) = &item.kind;
 
-            let func_type = ir::Type {
-                params: function
-                    .params
-                    .iter()
-                    .map(|e| type_to_wasm(&e.r#type.expect("function param has no type")))
-                    .collect::<Vec<Valtype>>(),
-                returns: if let Some(return_type) = function.return_type {
-                    vec![type_to_wasm(&return_type)]
-                } else {
-                    vec![]
-                },
-            };
-
-            if function.name == "start" {
-                self.start = Some(functions.len() as u32);
+            if function.attrs.import != ast::Import::None {
+                let name = match &function.attrs.import {
+                    ast::Import::Explicit(name) => name.clone(),
+                    _ => function.name.clone(),
+                };
+                let import = Import {
+                    module_name: "env".to_string(),
+                    name,
+                    kind: ImportKind::Function(types.len() as u32),
+                };
+                imports.push(import);
+                self.process_type(function, &mut types);
+            } else {
+                non_imports.push(function);
             }
+        }
 
-            // generate function code
-            let mut code: Vec<u8> = vec![];
-            let locals = self.gen_function_code(&mut code, &function);
+        let mut fn_index = imports.len() as u32;
 
-            let ir_function = Function {
-                type_index: types.len() as u8,
-                code: Code { locals, body: code },
-            };
+        // process the rest of the functions
+        for function in &non_imports {
+            if function.name == "start" {
+                self.start = Some(fn_index);
+            }
 
             if function.attrs.export != ast::Export::None {
                 let name = match &function.attrs.export {
@@ -89,17 +127,18 @@ impl WasmCompiler {
                 let export = Export {
                     name,
                     kind: ExternalKind::Function,
-                    index: functions.len() as u32,
+                    index: fn_index,
                 };
                 exports.push(export);
             }
 
-            types.push(func_type);
-            functions.push(ir_function);
+            functions.push(self.process_function(function, &mut types));
+            fn_index += 1;
         }
 
         Module {
             types: Some(types),
+            imports: Some(imports),
             functions: Some(functions),
             exports: Some(exports),
             start: self.start,
