@@ -1,0 +1,29 @@
+import("env", "print_int") func print(a: i32)
+
+func start() {
+    print(fib_rec(10)) // 55
+    print(fib_it(10)) // 55
+}
+
+// recursive fibonacci
+func fib_rec(n: i32) -> i32 {
+    if n <= 1 {
+        return n
+    }
+    return fib_rec(n - 1) + fib_rec(n - 2)
+}
+
+// iterative fibonacci
+func fib_it(n: i32) -> i32 {
+    let a = 0
+    let b = 1
+    let c = 0
+    let i = 0
+    while i < n {
+        c = a + b
+        a = b
+        b = c
+        i += 1
+    }
+    return a
+}

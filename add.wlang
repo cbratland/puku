@@ -1,4 +1,4 @@
-import("std", "print_int") func print(a: i32)
+import("env", "print_int") func print(a: i32)
 
 func start() {
 	print(add(1, 2)) // 3

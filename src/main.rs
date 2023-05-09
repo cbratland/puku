@@ -12,15 +12,17 @@ mod parser;
 mod typechecker;
 
 fn usage() -> ! {
-    eprintln!("Usage: wasmlangc <file>");
+    eprintln!("Usage: wasmlangc [build|run] <file>");
     process::exit(1)
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
+    if args.len() != 3 || (args[1] != "build" && args[1] != "run") {
         usage();
     }
+
+    let out_path = "./out.wasm";
 
     // read input file
     let file_name = args.last().unwrap();
@@ -48,17 +50,21 @@ fn main() {
     let mut compiler = codegen::wasm::WasmCompiler::new();
     let module = compiler.compile(ast);
 
-    // emit to tmp.wasm
-    let file = std::fs::File::create("./tmp.wasm").expect("failed to create file");
+    // emit to out.wasm
+    let file = std::fs::File::create(out_path).expect("failed to create file");
     let mut buffer = BufWriter::new(file);
 
     codegen::wasm::emit(module, &mut buffer).expect("failed to write codegen to buffer");
 
     buffer.flush().expect("couldn't flush buffer to file");
 
+    if args[1] != "run" {
+        return;
+    }
+
     // read stuff
-    let mut file = std::fs::File::open("./tmp.wasm").expect("no file found");
-    let metadata = std::fs::metadata("./tmp.wasm").expect("unable to read metadata");
+    let mut file = std::fs::File::open(out_path).expect("no file found");
+    let metadata = std::fs::metadata(out_path).expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
     file.read_exact(&mut buffer).expect("file read failed");
     // println!("bytes: {:02X?}", &buffer);
@@ -67,15 +73,15 @@ fn main() {
     let mut store = wasmer::Store::default();
     let module = wasmer::Module::new(&store, &buffer).expect("invalid wasm generated");
 
-    let native = wasmer::Function::new_typed(&mut store, |int: i32| {
+    let print_int = wasmer::Function::new_typed(&mut store, |int: i32| {
         println!("{}", int);
     });
     let instance = wasmer::Instance::new(
         &mut store,
         &module,
         &wasmer::imports! {
-            "std" => {
-                "print_int" => native,
+            "env" => {
+                "print_int" => print_int,
             }
         },
     )
@@ -89,7 +95,5 @@ fn main() {
                 .i32()
                 .unwrap()
         );
-    } else {
-        eprintln!("add function not exported");
     }
 }

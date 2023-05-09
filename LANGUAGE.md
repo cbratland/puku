@@ -31,20 +31,3 @@ func_call ::= IDENT "(" (expr ",")* ")
 assign    ::= expr_unit "=" expr_unit"
 assignop  ::= expr_unit binop "=" expr_unit
 ```
-
-# roadmap
-- [x] variable mutability
-- [x] function calls
-- [x] while loops
-- [x] comparison ops (<, <=, >, >=, etc.)
-- [x] break and continue keywords
-- [x] else if branches
-- [x] operator equals (+=, -=, etc.)
-- [x] start function
-- [x] import functions
-- [x] import namespace and export name specification
-- [x] plain loops
-- [ ] for loops
-- [ ] specify variable mutability (semantic analysis?)
-- [ ] evaluatable blocks (blocks return a value)
-- [ ] optionals
