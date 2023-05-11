@@ -33,7 +33,22 @@ impl Analyzer {
         match &mut item.kind {
             ItemKind::Function(func) => {
                 if let Some(block) = &mut func.block {
+                    if func.attrs.import != Import::None {
+                        return Err(ParseError {
+                            level: ErrorLevel::Error,
+                            message: String::from("imported functions cannot have a body"),
+                            span: Some(block.span),
+                        });
+                    }
                     self.check_block(block)?;
+                } else {
+                    if func.attrs.import == Import::None {
+                        return Err(ParseError {
+                            level: ErrorLevel::Error,
+                            message: String::from("function must have a body"),
+                            span: Some(item.span),
+                        });
+                    }
                 }
             }
         };
@@ -78,6 +93,21 @@ impl Analyzer {
                     self.check_expr(rhs)?;
                 } else {
                     panic!("variable `{}` not found", name)
+                }
+            }
+            ExpressionKind::BinOp(binop) => {
+                self.check_expr(&mut binop.left)?;
+                self.check_expr(&mut binop.right)?;
+                if binop.operator == BinaryOperator::Div {
+                    if let ExpressionKind::Literal(lit) = &binop.right.kind {
+                        if *lit == LiteralKind::Integer(0) || *lit == LiteralKind::Float(0.0) {
+                            return Err(ParseError {
+                                level: ErrorLevel::Error,
+                                message: String::from("division by zero"),
+                                span: Some(expr.span),
+                            });
+                        }
+                    }
                 }
             }
             ExpressionKind::Block(block) => self.check_block(block)?,

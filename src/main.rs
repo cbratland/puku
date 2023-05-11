@@ -84,7 +84,7 @@ fn main() {
     let print_int = wasmer::Function::new_typed(&mut store, |int: i32| {
         println!("{}", int);
     });
-    let instance = wasmer::Instance::new(
+    let _instance = match wasmer::Instance::new(
         &mut store,
         &module,
         &wasmer::imports! {
@@ -92,16 +92,21 @@ fn main() {
                 "print_int" => print_int,
             }
         },
-    )
-    .unwrap();
+    ) {
+        Ok(instance) => instance,
+        Err(err) => {
+            eprintln!("error instantiating wasm module: {}", err);
+            return;
+        }
+    };
 
-    if let Ok(add) = instance.exports.get::<wasmer::Function>("add") {
-        println!(
-            "add(1,2): {}",
-            add.call(&mut store, &[wasmer::Value::I32(1), wasmer::Value::I32(2)])
-                .unwrap()[0]
-                .i32()
-                .unwrap()
-        );
-    }
+    // if let Ok(add) = instance.exports.get::<wasmer::Function>("add") {
+    //     println!(
+    //         "add(1,2): {}",
+    //         add.call(&mut store, &[wasmer::Value::I32(1), wasmer::Value::I32(2)])
+    //             .unwrap()[0]
+    //             .i32()
+    //             .unwrap()
+    //     );
+    // }
 }

@@ -1,7 +1,7 @@
 # wasmlang (not yet named)
 
 ## Notes
-For now, this can be run with `cargo run -- run add.wlang`, which will produce a wasm binary called `out.wasm` and will then be run with [wasmer](https://wasmer.io/) automatically. Tests can be run with `cargo test`. See `examples` directory for some examples.
+For now, this can be run with `cargo run -- run path/to/file.wlang`, which will produce a wasm binary called `out.wasm` and will then be run with [wasmer](https://wasmer.io/) automatically. Tests can be run with `cargo test`. See `examples` directory for some examples.
 
 ## Purpose
 - Target WebAssembly first and foremost
@@ -21,21 +21,22 @@ Similar to Rust/Swift/Kotlin.
 - LLVM/CraneLift backend
 
 ## Current Roadmap
-- [x] variable mutability
+- [x] import and export functions
+- [x] mutable/immutable variables
 - [x] function calls
-- [x] while loops
-- [x] comparison ops (<, <=, >, >=, etc.)
+- [x] plain loops and while loops
 - [x] break and continue keywords
-- [x] else if branches
-- [x] operator equals (+=, -=, etc.)
-- [x] start function
-- [x] import functions
-- [x] import namespace and export name specification
-- [x] plain loops
-- [x] specify variable mutability
-- [ ] static analysis
-    - [ ] divide by zero
-    - [ ] unused variables/imports/functions
+- [x] comparison operators (<, <=, >, >=, etc.)
+- [x] assignment operators (+=, -=, etc.)
+- [x] if else branches
+- [x] start function (entry point)
+- [x] static analysis
+    - [x] basic type checking
+    - [x] variable mutability
+    - [x] function body existence
+    - [x] dividing by zero
+    - [ ] argument count and type checking
+    - [ ] unused variables/imports/functions (warning)
 - [ ] arrays
 - [ ] strings
 - [ ] for loops
