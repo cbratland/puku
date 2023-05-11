@@ -32,7 +32,12 @@ Similar to Rust/Swift/Kotlin.
 - [x] import functions
 - [x] import namespace and export name specification
 - [x] plain loops
+- [x] specify variable mutability
+- [ ] static analysis
+    - [ ] divide by zero
+    - [ ] unused variables/imports/functions
+- [ ] arrays
+- [ ] strings
 - [ ] for loops
-- [ ] specify variable mutability (semantic analysis?)
 - [ ] evaluatable blocks (blocks return a value)
 - [ ] optionals

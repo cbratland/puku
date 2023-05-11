@@ -14,3 +14,4 @@ pub const Loop: &str = "loop";
 pub const While: &str = "while";
 
 pub const Let: &str = "let";
+pub const Mut: &str = "mut";

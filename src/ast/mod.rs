@@ -102,10 +102,16 @@ pub struct Statement {
 }
 
 impl Statement {
-    pub fn declaration(ident: String, r#type: Option<Type>, init: Expression, span: Span) -> Self {
+    pub fn declaration(
+        mutable: bool,
+        ident: String,
+        r#type: Option<Type>,
+        init: Expression,
+        span: Span,
+    ) -> Self {
         Self {
             kind: StatementKind::Let(Box::new(Local {
-                mutable: false,
+                mutable,
                 ident,
                 r#type,
                 init,

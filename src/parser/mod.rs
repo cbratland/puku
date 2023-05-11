@@ -370,13 +370,21 @@ impl<'a> Parser<'a> {
         if !self.eat_keyword(keyword::Let) {
             return Err(ParseError::expected_keyword(keyword::Let, self.token.span));
         }
+        let mutable = self.eat_keyword(keyword::Mut);
         let assign: Expression = self.parse_expr()?;
         if let ExpressionKind::Assign(lhs, rhs) = assign.kind {
             if let AssignmentVariable::Variable(ident) = *lhs {
                 // TODO: include let in span
-                Ok(Statement::declaration(ident.name, None, *rhs, assign.span))
+                Ok(Statement::declaration(
+                    mutable,
+                    ident.name,
+                    None,
+                    *rhs,
+                    assign.span,
+                ))
             } else if let AssignmentVariable::TypeAscription(ident) = *lhs {
                 Ok(Statement::declaration(
+                    mutable,
                     ident.name,
                     ident.r#type,
                     *rhs,

@@ -2,21 +2,21 @@ use super::{BasicType, Type};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-pub struct Symbol {
+pub struct TypeSymbol {
     pub name: Option<String>,
     pub r#type: Type,
 }
 
-impl Symbol {
+impl TypeSymbol {
     pub fn var(name: String, typ: Type) -> Self {
-        Symbol {
+        TypeSymbol {
             name: Some(name),
             r#type: typ,
         }
     }
 
     pub fn typ(typ: Type) -> Self {
-        Symbol {
+        TypeSymbol {
             name: None,
             r#type: typ,
         }
@@ -28,12 +28,12 @@ impl Symbol {
 }
 
 #[derive(Debug)]
-pub struct SymbolTable {
-    scopes: Vec<HashMap<String, Symbol>>,
+pub struct SymbolTable<T: Clone> {
+    scopes: Vec<HashMap<String, T>>,
 }
 
-impl SymbolTable {
-    pub fn new() -> Self {
+impl SymbolTable<TypeSymbol> {
+    pub fn default() -> Self {
         // add builtin types
         let mut symbols = HashMap::new();
         for symbol in &[
@@ -49,15 +49,21 @@ impl SymbolTable {
             ("f32", Type::Basic(BasicType::Float32)),
             ("f64", Type::Basic(BasicType::Float64)),
         ] {
-            symbols.insert(symbol.0.to_string(), Symbol::typ(symbol.1));
+            symbols.insert(symbol.0.to_string(), TypeSymbol::typ(symbol.1));
         }
 
         SymbolTable {
             scopes: vec![symbols],
         }
     }
+}
 
-    pub fn get(&self, key: &str) -> Option<Symbol> {
+impl<T: Clone> SymbolTable<T> {
+    pub fn new() -> Self {
+        SymbolTable { scopes: Vec::new() }
+    }
+
+    pub fn get(&self, key: &str) -> Option<T> {
         for table in self.scopes.iter().rev() {
             if let Some(entry) = table.get(key) {
                 return Some(entry.clone());
@@ -66,7 +72,7 @@ impl SymbolTable {
         None
     }
 
-    pub fn insert(&mut self, key: &str, entry: Symbol) {
+    pub fn insert(&mut self, key: &str, entry: T) {
         self.current().insert(String::from(key), entry);
     }
 
@@ -82,7 +88,7 @@ impl SymbolTable {
         self.scopes.pop();
     }
 
-    fn current(&mut self) -> &mut HashMap<String, Symbol> {
+    fn current(&mut self) -> &mut HashMap<String, T> {
         let index = self.scopes.len() - 1;
         &mut self.scopes[index]
     }

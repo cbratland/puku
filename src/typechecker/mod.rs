@@ -28,14 +28,14 @@ impl ParseError {
 
 struct TypeChecker<'a> {
     src: &'a str,
-    symbol_table: SymbolTable,
+    symbol_table: SymbolTable<TypeSymbol>,
 }
 
 impl<'a> TypeChecker<'a> {
     pub fn new(src: &'a str) -> Self {
         Self {
             src,
-            symbol_table: SymbolTable::new(),
+            symbol_table: SymbolTable::default(),
         }
     }
 
@@ -54,7 +54,7 @@ impl<'a> TypeChecker<'a> {
 
             // add function as symbol
             self.symbol_table
-                .insert(&func.name, Symbol::func(func.name.clone(), return_type));
+                .insert(&func.name, TypeSymbol::func(func.name.clone(), return_type));
         }
         for item in &mut ast.items {
             self.check_item(item)?;
@@ -95,7 +95,7 @@ impl<'a> TypeChecker<'a> {
                     for param in &mut func.params {
                         self.symbol_table.insert(
                             &param.name,
-                            Symbol::var(
+                            TypeSymbol::var(
                                 param.name.clone(),
                                 param.r#type.expect("param type not filled in"),
                             ),
@@ -148,7 +148,7 @@ impl<'a> TypeChecker<'a> {
                 }
                 self.symbol_table.insert(
                     &local.ident,
-                    Symbol::var(
+                    TypeSymbol::var(
                         local.ident.clone(),
                         local.r#type.expect("variable type not filled in"),
                     ),

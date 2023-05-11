@@ -3,6 +3,7 @@ use std::env;
 use std::io::{BufWriter, Read, Write};
 use std::process;
 
+mod analyzer;
 #[allow(dead_code)]
 mod ast;
 mod codegen;
@@ -32,9 +33,10 @@ fn main() {
         .read_to_string(&mut src)
         .expect("failed to read file");
 
-    // pipeline
+    // tokenize
     let tokens = lexer::tokenize(&src);
     // println!("tokens: {:?}", tokens);
+    // parse into ast
     let mut ast = match parser::parse(&src, tokens) {
         Ok(ast) => ast,
         Err(err) => {
@@ -42,8 +44,14 @@ fn main() {
             return;
         }
     };
+    // typecheck
     if let Err(type_error) = typechecker::check(&src, &mut ast) {
         type_error.emit(file_name, &src);
+        return;
+    }
+    // static analysis
+    if let Err(semantic_error) = analyzer::analyze(&src, &mut ast) {
+        semantic_error.emit(file_name, &src);
         return;
     }
     // println!("ast: {:#?}", ast);
