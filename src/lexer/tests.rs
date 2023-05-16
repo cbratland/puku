@@ -24,12 +24,12 @@ fn function() {
             Token::new(TokenKind::CloseDelimiter(Delimiter::Parenthesis), 30, 1),
             Token::new(TokenKind::Arrow, 32, 2),
             Token::new(TokenKind::Identifier, 35, 3),
-            Token::new(TokenKind::OpenDelimiter(Delimiter::Bracket), 39, 1),
+            Token::new(TokenKind::OpenDelimiter(Delimiter::Brace), 39, 1),
             Token::new(TokenKind::Identifier, 41, 6),
             Token::new(TokenKind::Identifier, 48, 1),
             Token::new(TokenKind::BinOp(BinOpToken::Plus), 50, 1),
             Token::new(TokenKind::Identifier, 52, 1),
-            Token::new(TokenKind::CloseDelimiter(Delimiter::Bracket), 54, 1),
+            Token::new(TokenKind::CloseDelimiter(Delimiter::Brace), 54, 1),
             Token::new(TokenKind::Eof, 55, 0)
         ]
     )
