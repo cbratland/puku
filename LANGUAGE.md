@@ -26,7 +26,8 @@ if        ::= "if" expr block ("else" (if | block))?
 loop      ::= "loop" block
 while     ::= "while" expr block
 group     ::= "(" expr ")"
-literal   ::= NUMBER | STRING | "true" | "false"
+array_lit ::= "[" (expr ",")* "]"
+literal   ::= NUMBER | STRING | "true" | "false" | array_lit
 func_call ::= IDENT "(" (expr ",")* ")
 assign    ::= expr_unit "=" expr_unit"
 assignop  ::= expr_unit binop "=" expr_unit

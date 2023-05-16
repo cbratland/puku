@@ -35,10 +35,16 @@ Similar to Rust/Swift/Kotlin.
     - [x] variable mutability
     - [x] function body existence
     - [x] dividing by zero
-    - [ ] argument count and type checking
+    - [ ] function type and argument count checking
     - [ ] unused variables/imports/functions (warning)
-- [ ] arrays
+- [x] arrays: i32 memory offsets, with the first element being the i32 length of the array
+    - [x] literals
+    - [x] indexing
+    - [ ] type specifying (e.g. [i32])
+    - [ ] assignment (e.g. a[0] = 1)
+    - [ ] size specifying? (e.g. [i32; 10])
 - [ ] strings
 - [ ] for loops
+- [ ] bitwise operators (^, |, &, etc.)
 - [ ] evaluatable blocks (blocks return a value)
 - [ ] optionals

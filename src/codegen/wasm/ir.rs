@@ -162,7 +162,7 @@ impl Default for Module {
             tables: None,
             // wasm v1 only supports one memory
             memories: Some(vec![Memory {
-                limits: Limits { min: 0, max: None },
+                limits: Limits { min: 1, max: None },
             }]),
             globals: None,
             exports: None,
@@ -190,6 +190,16 @@ pub enum Opcode {
     LocalTee = 0x22,
     GlobalGet = 0x23,
     GlobalSet = 0x24,
+
+    I32Load = 0x28,
+    I64Load = 0x29,
+    F32Load = 0x2A,
+    F64Load = 0x2B,
+
+    I32Store = 0x36,
+    I64Store = 0x37,
+    F32Store = 0x38,
+    F64Store = 0x39,
 
     MemoryGrow = 0x40,
 

@@ -81,8 +81,11 @@ fn main() {
     let mut store = wasmer::Store::default();
     let module = wasmer::Module::new(&store, &buffer).expect("invalid wasm generated");
 
-    let print_int = wasmer::Function::new_typed(&mut store, |int: i32| {
-        println!("{}", int);
+    let print_int = wasmer::Function::new_typed(&mut store, |num: i32| {
+        println!("{}", num);
+    });
+    let print_float = wasmer::Function::new_typed(&mut store, |num: f32| {
+        println!("{}", num);
     });
     let _instance = match wasmer::Instance::new(
         &mut store,
@@ -90,6 +93,7 @@ fn main() {
         &wasmer::imports! {
             "env" => {
                 "print_int" => print_int,
+                "print_float" => print_float,
             }
         },
     ) {

@@ -303,7 +303,7 @@ impl<'a> Parser<'a> {
         };
 
         // parse block
-        let block = if self.check(&TokenKind::OpenDelimiter(Delimiter::Bracket)) {
+        let block = if self.check(&TokenKind::OpenDelimiter(Delimiter::Brace)) {
             Some(self.parse_block()?)
         } else {
             None
@@ -322,9 +322,9 @@ impl<'a> Parser<'a> {
     // { [expr]* }
     fn parse_block(&mut self) -> Result<Block> {
         let start = self.token.span;
-        self.expect(&TokenKind::OpenDelimiter(Delimiter::Bracket))?;
+        self.expect(&TokenKind::OpenDelimiter(Delimiter::Brace))?;
         let mut statements: Vec<Statement> = vec![];
-        while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Bracket)) {
+        while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Brace)) {
             statements.push(self.parse_stmt()?);
         }
         Ok(Block {
@@ -536,7 +536,16 @@ impl<'a> Parser<'a> {
                             self.expect(&TokenKind::Comma)?;
                         }
                     }
-                    return Ok(Expression::call(expr, args, self.token.span));
+                    Ok(Expression::call(expr, args, span.to(&self.prev_token.span)))
+                } else if self.eat(&TokenKind::OpenDelimiter(Delimiter::Bracket)) {
+                    // array index
+                    let index = self.parse_expr()?;
+                    self.expect(&TokenKind::CloseDelimiter(Delimiter::Bracket))?;
+                    return Ok(Expression::index(
+                        expr,
+                        index,
+                        span.to(&self.prev_token.span),
+                    ));
                 } else {
                     // variable
                     Ok(expr)
@@ -567,7 +576,25 @@ impl<'a> Parser<'a> {
             };
             self.next();
             Ok(lit)
+        } else if self.eat(&TokenKind::OpenDelimiter(Delimiter::Bracket)) {
+            // array literal
+            let start = self.prev_token.span;
+            let mut exprs: Vec<Expression> = vec![];
+            while !self.eat(&TokenKind::CloseDelimiter(Delimiter::Bracket)) {
+                exprs.push(self.parse_expr()?);
+                if !self.check(&TokenKind::CloseDelimiter(Delimiter::Bracket)) {
+                    self.expect(&TokenKind::Comma)?;
+                }
+            }
+            Ok(Expression::literal(
+                ast::LiteralKind::Array(ArrayLiteral {
+                    elems: exprs,
+                    r#type: None,
+                }),
+                start.to(&self.token.span),
+            ))
         } else {
+            println!("{:?}", self.token.kind);
             Err(ParseError::expected_expression(self.token.span))
         }
     }

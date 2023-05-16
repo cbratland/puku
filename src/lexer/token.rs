@@ -17,8 +17,8 @@ pub enum BinOpToken {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Delimiter {
     Parenthesis, // ()
-    Brace,       // []
-    Bracket,     // {}
+    Brace,       // {}
+    Bracket,     // []
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

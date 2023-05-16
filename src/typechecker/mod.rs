@@ -203,6 +203,21 @@ impl<'a> TypeChecker<'a> {
                     panic!("unhandled callee kind {:?}", callee.kind);
                 }
             }
+            ExpressionKind::Index(expr, index) => {
+                let expr_type = self.check_expr(expr)?;
+                let index_type = self.check_expr(index)?;
+                if index_type != Type::Basic(BasicType::Int32) {
+                    return Err(ParseError::mismatched(
+                        Type::Basic(BasicType::Int32),
+                        index.span,
+                    ));
+                }
+                if let Type::Array(arr_type) = expr_type {
+                    Type::Basic(arr_type)
+                } else {
+                    panic!("expected array type")
+                }
+            }
             ExpressionKind::Assign(lhs, rhs) => {
                 let lhs_type = match &mut **lhs {
                     AssignmentVariable::Variable(var) => {
@@ -227,6 +242,25 @@ impl<'a> TypeChecker<'a> {
                 LiteralKind::Integer(_) => Type::Basic(BasicType::Int32),
                 LiteralKind::Float(_) => Type::Basic(BasicType::Float32),
                 LiteralKind::Bool(_) => Type::Basic(BasicType::Bool),
+                LiteralKind::Array(lit) => {
+                    let mut array_type = None;
+                    for expr in &mut lit.elems {
+                        let expr_type = self.check_expr(expr)?;
+                        if let Some(array_type) = &mut array_type {
+                            if *array_type != expr_type {
+                                return Err(ParseError::mismatched(expr_type, expr.span));
+                            }
+                        } else {
+                            array_type = Some(expr_type);
+                        }
+                    }
+                    lit.r#type = array_type;
+                    if let Some(Type::Basic(array_type)) = array_type {
+                        Type::Array(array_type)
+                    } else {
+                        panic!("empty array")
+                    }
+                }
                 _ => panic!("unhandled literal kind {:?}", lit),
             },
             ExpressionKind::Group(expr) => self.check_expr(expr)?,

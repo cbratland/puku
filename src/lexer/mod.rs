@@ -124,10 +124,10 @@ impl<'a> Lexer<'a> {
                 '?' => TokenKind::Question,
                 '(' => TokenKind::OpenDelimiter(Delimiter::Parenthesis),
                 ')' => TokenKind::CloseDelimiter(Delimiter::Parenthesis),
-                '{' => TokenKind::OpenDelimiter(Delimiter::Bracket),
-                '}' => TokenKind::CloseDelimiter(Delimiter::Bracket),
-                '[' => TokenKind::OpenDelimiter(Delimiter::Brace),
-                ']' => TokenKind::CloseDelimiter(Delimiter::Brace),
+                '{' => TokenKind::OpenDelimiter(Delimiter::Brace),
+                '}' => TokenKind::CloseDelimiter(Delimiter::Brace),
+                '[' => TokenKind::OpenDelimiter(Delimiter::Bracket),
+                ']' => TokenKind::CloseDelimiter(Delimiter::Bracket),
 
                 '-' => match self.peek() {
                     '>' => {

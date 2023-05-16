@@ -7,13 +7,14 @@ pub use emit::emit;
 
 use crate::ast::{
     self, AssignmentVariable, Ast, BinaryOperator, Expression, ExpressionKind, ItemKind, Statement,
-    StatementKind, UnaryOperator,
+    StatementKind, SymbolTable, TypeSymbol, UnaryOperator,
 };
 use ir::*;
 use std::collections::HashMap;
 
 // takes generic ast and converts to wasm ir
 pub struct WasmCompiler {
+    symbol_table: SymbolTable<TypeSymbol>,
     functions: HashMap<String, u8>, // function indexes
     locals: HashMap<String, u8>,    // current locals
     local_types: Vec<Valtype>,      // types for locals
@@ -25,6 +26,7 @@ pub struct WasmCompiler {
 impl WasmCompiler {
     pub fn new() -> Self {
         WasmCompiler {
+            symbol_table: SymbolTable::default(),
             functions: HashMap::new(),
             locals: HashMap::new(),
             local_types: Vec::new(),
@@ -158,6 +160,8 @@ impl WasmCompiler {
         self.local_counter = 0;
         self.level = 0;
 
+        self.symbol_table.push_scope();
+
         // define function indexes
         for (func_name, idx) in &self.functions {
             self.locals.insert(func_name.clone(), *idx);
@@ -169,6 +173,11 @@ impl WasmCompiler {
             self.local_types
                 .push(type_to_wasm(&arg.r#type.expect("param has no type")));
             self.local_counter += 1;
+
+            self.symbol_table.insert(
+                &arg.name,
+                TypeSymbol::var(arg.name.clone(), arg.r#type.unwrap()),
+            );
         }
 
         // generate statement code
@@ -177,6 +186,8 @@ impl WasmCompiler {
                 self.gen_stmt_code(buffer, statement);
             }
         }
+
+        self.symbol_table.pop_scope();
 
         // todo: there has got to be a better way of writing this
         let mut locals_vec: Vec<(Valtype, u32)> = vec![];
@@ -236,8 +247,20 @@ impl WasmCompiler {
                     .unwrap();
                 self.locals.insert(local.ident.clone(), self.local_counter);
                 self.local_counter += 1;
-                self.local_types
-                    .push(type_to_wasm(&local.r#type.expect("missing local type")));
+                let local_type = match local.r#type.expect("missing local type") {
+                    ast::Type::Basic(basic) => basic_type_to_wasm(&basic),
+                    ast::Type::Array(_) => Valtype::I32,
+                    _ => panic!("unhandled let variable type"),
+                };
+                self.local_types.push(local_type);
+
+                self.symbol_table.insert(
+                    &local.ident,
+                    TypeSymbol::var(
+                        local.ident.clone(),
+                        local.r#type.expect("variable type not filled in"),
+                    ),
+                );
             }
             StatementKind::Expr(expr) => self.gen_expr_code(buffer, expr),
             StatementKind::Break => {
@@ -291,6 +314,67 @@ impl WasmCompiler {
                     buffer.write_all(&[Opcode::Call as u8, *index]).unwrap();
                 } else {
                     panic!("have to call a function");
+                }
+            }
+            ExpressionKind::Index(expr, index) => {
+                if let ExpressionKind::Variable(var) = &expr.kind {
+                    let var_index = match self.locals.get(&var.name) {
+                        Some(idx) => idx,
+                        None => {
+                            panic!("variable not found: {}", var.name);
+                        }
+                    };
+                    let arr_type = type_to_wasm(
+                        &self
+                            .symbol_table
+                            .get(&var.name)
+                            .expect("undefined variable type")
+                            .r#type,
+                    );
+                    let type_size = match arr_type {
+                        Valtype::I32 => 4,
+                        Valtype::I64 => 8,
+                        Valtype::F32 => 4,
+                        Valtype::F64 => 8,
+                        Valtype::V128 => panic!("unhandled v128 type"),
+                    };
+                    let load_op = match arr_type {
+                        Valtype::I32 => Opcode::I32Load,
+                        Valtype::I64 => Opcode::I64Load,
+                        Valtype::F32 => Opcode::F32Load,
+                        Valtype::F64 => Opcode::F64Load,
+                        Valtype::V128 => panic!("unhandled v128 type"),
+                    } as u8;
+
+                    buffer
+                        .write_all(&[
+                            // offset = (i32.add (i32.add (local.get $__offsetx) (i32.const 4)) (i32.mul (i32.const sz) index))
+                            Opcode::LocalGet as u8,
+                            *var_index,
+                            Opcode::I32Const as u8,
+                            4,
+                            Opcode::I32Add as u8,
+                            Opcode::I32Const as u8,
+                            type_size,
+                        ])
+                        .unwrap();
+
+                    self.gen_expr_code(buffer, &index);
+
+                    buffer
+                        .write_all(&[
+                            Opcode::I32Mul as u8,
+                            Opcode::I32Add as u8,
+                            // (x.load offset)
+                            load_op,
+                            2,
+                            0, // alignment, offset
+                        ])
+                        .unwrap();
+
+                    // buffer.write_all(&[Opcode::Call as u8, *index]).unwrap();
+                } else {
+                    panic!("can only index a variable atm, sorry :(");
                 }
             }
             ExpressionKind::Assign(lhs, rhs) => {
@@ -411,6 +495,110 @@ impl WasmCompiler {
                     buffer.write_all(&[Opcode::I32Const as u8]).unwrap();
                     leb128::write::signed(buffer, i64::from(*bool)).unwrap();
                 }
+                ast::LiteralKind::Array(lit) => {
+                    // establish typed opcodes
+                    let arr_len = lit.elems.len() as u64;
+                    let arr_type = type_to_wasm(&lit.r#type.expect("untyped array"));
+                    let store_op = match arr_type {
+                        Valtype::I32 => Opcode::I32Store,
+                        Valtype::I64 => Opcode::I64Store,
+                        Valtype::F32 => Opcode::F32Store,
+                        Valtype::F64 => Opcode::F64Store,
+                        Valtype::V128 => panic!("unhandled v128 type"),
+                    } as u8;
+                    // size in bytes of array type
+                    let type_size: u64 = match arr_type {
+                        Valtype::I32 => 4,
+                        Valtype::I64 => 8,
+                        Valtype::F32 => 4,
+                        Valtype::F64 => 8,
+                        Valtype::V128 => panic!("unhandled v128 type"),
+                    };
+
+                    // create array of i32s with the length of the array
+                    buffer
+                        .write_all(&[
+                            // (local.set $__offsetx (i32.load (i32.const 0)))
+                            Opcode::I32Const as u8,
+                            0,
+                            Opcode::I32Load as u8,
+                            2, // alignment
+                            0, // offset
+                            Opcode::LocalSet as u8,
+                            self.local_counter,
+                            // (i32.store (local.get $__offsetx) (i32.const exprs_len))
+                            Opcode::LocalGet as u8,
+                            self.local_counter,
+                            Opcode::I32Const as u8,
+                        ])
+                        .unwrap();
+                    leb128::write::unsigned(buffer, arr_len).unwrap();
+                    buffer
+                        .write_all(&[
+                            Opcode::I32Store as u8,
+                            2,
+                            0, // alignment, offset
+                            // (i32.store (i32.const 0) (i32.add (i32.add (local.get $__offsetx) (i32.const exprs_len * sz)) 4))
+                            Opcode::I32Const as u8,
+                            0,
+                            Opcode::I32Const as u8,
+                        ])
+                        .unwrap();
+                    leb128::write::unsigned(buffer, arr_len * type_size).unwrap();
+                    buffer
+                        .write_all(&[
+                            Opcode::LocalGet as u8,
+                            self.local_counter,
+                            Opcode::I32Add as u8,
+                            Opcode::I32Const as u8,
+                            4,
+                            Opcode::I32Add as u8,
+                            Opcode::I32Store as u8,
+                            2, // alignment
+                            0, // offset
+                        ])
+                        .unwrap();
+
+                    // store each element in the array
+                    for (i, expr) in lit.elems.iter().enumerate() {
+                        buffer
+                            .write_all(&[
+                                // offset = (i32.add (i32.add (local.get $__offsetx) (i32.const 4)) (i32.const i * sz))
+                                Opcode::LocalGet as u8,
+                                self.local_counter,
+                                Opcode::I32Const as u8,
+                                4,
+                                Opcode::I32Add as u8,
+                                Opcode::I32Const as u8,
+                            ])
+                            .unwrap();
+                        leb128::write::unsigned(buffer, i as u64 * type_size).unwrap();
+                        buffer.write_all(&[Opcode::I32Add as u8]).unwrap();
+
+                        // value = whatever
+                        self.gen_expr_code(buffer, expr);
+
+                        buffer
+                            .write_all(&[
+                                // (x.store offset value)
+                                store_op, 2, 0, // alignment, offset
+                            ])
+                            .unwrap();
+                    }
+
+                    // return offset
+                    buffer
+                        .write_all(&[Opcode::LocalGet as u8, self.local_counter])
+                        .unwrap();
+
+                    // store array offset in locals
+                    self.locals.insert(
+                        format!("__offset{}", self.local_counter),
+                        self.local_counter,
+                    );
+                    self.local_counter += 1;
+                    self.local_types.push(Valtype::I32);
+                }
                 _ => panic!("unhandled literal"),
             },
             ExpressionKind::Group(expr) => self.gen_expr_code(buffer, expr),
@@ -474,6 +662,7 @@ impl WasmCompiler {
                 buffer.write_all(&[Opcode::Loop as u8, 0x40]).unwrap();
                 self.level += 1;
 
+                // loop body
                 self.gen_expr_code(buffer, body);
 
                 // loop to start
@@ -523,17 +712,21 @@ impl WasmCompiler {
 
 fn type_to_wasm(ast_type: &ast::Type) -> Valtype {
     match ast_type {
-        ast::Type::Basic(basic) => match basic {
-            ast::BasicType::Int32 => Valtype::I32,
-            ast::BasicType::Int64 => Valtype::I64,
-            ast::BasicType::Float32 => Valtype::F32,
-            ast::BasicType::Float64 => Valtype::F64,
-
-            ast::BasicType::Bool => Valtype::I32,
-
-            _ => panic!("unknown basic type {:?}", basic),
-        },
+        ast::Type::Basic(basic) => basic_type_to_wasm(basic),
+        ast::Type::Array(basic) => basic_type_to_wasm(basic),
         _ => panic!("unknown type {:?}", ast_type),
+    }
+}
+
+fn basic_type_to_wasm(basic_type: &ast::BasicType) -> Valtype {
+    match basic_type {
+        ast::BasicType::Int32 => Valtype::I32,
+        ast::BasicType::Int64 => Valtype::I64,
+        ast::BasicType::Float32 => Valtype::F32,
+        ast::BasicType::Float64 => Valtype::F64,
+
+        ast::BasicType::Bool => Valtype::I32,
+        _ => panic!("unknown basic type {:?}", basic_type),
     }
 }
 

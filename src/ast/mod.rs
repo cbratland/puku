@@ -24,6 +24,7 @@ pub enum Type {
 
     Unit,
     Basic(BasicType),
+    Array(BasicType), // todo: any types
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -34,12 +35,19 @@ pub struct Variable {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct ArrayLiteral {
+    pub elems: Vec<Expression>,
+    pub r#type: Option<Type>,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum LiteralKind {
     Bool(bool),
     Char(char),
     String(String),
     Integer(i32),
     Float(f32),
+    Array(ArrayLiteral),
 }
 
 // #[derive(Debug)]
@@ -172,6 +180,8 @@ pub enum ExpressionKind {
     // AssignOp(BinOp, Box<Expression>, Box<Expression>),
     // function call with params
     Call(Box<Expression>, Vec<Expression>),
+    // arr[index]
+    Index(Box<Expression>, Box<Expression>),
     // if
     If(Box<If>),
     // (expr)
@@ -245,6 +255,13 @@ impl Expression {
     pub fn call(callee: Expression, args: Vec<Expression>, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Call(Box::new(callee), args),
+            span,
+        }
+    }
+
+    pub fn index(expr: Expression, index: Expression, span: Span) -> Self {
+        Self {
+            kind: ExpressionKind::Index(Box::new(expr), Box::new(index)),
             span,
         }
     }

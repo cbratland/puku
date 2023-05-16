@@ -1,0 +1,10 @@
+import func print_int(a: i32)
+import func print_float(a: f32)
+
+func start() {
+    let a = [1, 2, 3]
+	print_int(a[2]) // 3
+
+    let b = [1.0, 2.0, 3.0]
+	print_float(b[1]) // 2
+}
