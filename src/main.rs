@@ -1,4 +1,3 @@
-// wasm lang
 use std::env;
 use std::io::{BufWriter, Read, Write};
 use std::process;
@@ -13,7 +12,7 @@ mod parser;
 mod typechecker;
 
 fn usage() -> ! {
-    eprintln!("Usage: wasmlangc [build|run] <file>");
+    eprintln!("Usage: pukuc [build|run] <file>");
     process::exit(1)
 }
 

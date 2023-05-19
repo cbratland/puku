@@ -1,4 +1,4 @@
-# incomplete grammar
+# Work-In-Progress Grammar
 ```
 program  ::= (item)* EOF
 item     ::= func

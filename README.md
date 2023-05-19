@@ -1,7 +1,9 @@
-# wasmlang (not yet named)
+# Puku
 
-## Notes
-For now, this can be run with `cargo run -- run path/to/file.wlang`, which will produce a wasm binary called `out.wasm` and will then be run with [wasmer](https://wasmer.io/) automatically. Tests can be run with `cargo test`. See `examples` directory for some examples.
+A simple programming language that compiles directly to WebAssembly.
+
+### Notes
+For now, this can be run with `cargo run -- run path/to/file.pk`, which will produce a wasm binary called `out.wasm` and will then be run with [wasmer](https://wasmer.io/) automatically. Tests can be run with `cargo test`. See `examples` directory for some examples and [LANGUAGE.md](LANGUAGE.md) for the formal grammar.
 
 ## Purpose
 - Target WebAssembly first and foremost

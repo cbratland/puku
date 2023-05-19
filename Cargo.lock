@@ -672,6 +672,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "puku"
+version = "0.1.0"
+dependencies = [
+ "bytecount",
+ "leb128",
+ "unicode-xid",
+ "wasmer",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1192,16 +1202,6 @@ dependencies = [
  "thiserror",
  "wasmer-types",
  "winapi",
-]
-
-[[package]]
-name = "wasmlang"
-version = "0.1.0"
-dependencies = [
- "bytecount",
- "leb128",
- "unicode-xid",
- "wasmer",
 ]
 
 [[package]]
