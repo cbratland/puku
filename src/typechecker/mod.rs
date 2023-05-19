@@ -53,8 +53,9 @@ impl<'a> TypeChecker<'a> {
             };
 
             // add function as symbol
+            let fn_name = func.name_span.in_src(&self.src);
             self.symbol_table
-                .insert(&func.name, TypeSymbol::func(func.name.clone(), return_type));
+                .insert(fn_name, TypeSymbol::func(fn_name.to_string(), return_type));
         }
         for item in &mut ast.items {
             self.check_item(item)?;

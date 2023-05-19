@@ -266,11 +266,8 @@ impl<'a> Parser<'a> {
         }
 
         // parse name
-        let name = self
-            .token
-            .identifier(self.src)
-            .ok_or_else(|| ParseError::expected_token(&TokenKind::Identifier, self.token.span))?;
-        self.next();
+        let name_span = self.token.span;
+        self.expect(&TokenKind::Identifier)?;
 
         // todo: generics
 
@@ -311,7 +308,7 @@ impl<'a> Parser<'a> {
 
         Ok(Function {
             attrs: FunctionAttributes { export, import },
-            name: name.to_string(),
+            name_span,
             params,
             return_type: return_type.map(Type::Unchecked),
             block,

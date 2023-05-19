@@ -37,7 +37,7 @@ impl WasmCompiler {
     }
 
     // todo: make this better
-    pub fn compile(&mut self, ast: Ast) -> Module {
+    pub fn compile(&mut self, src: &str, ast: Ast) -> Module {
         let mut types: Vec<ir::Type> = vec![];
         let mut functions: Vec<ir::Function> = vec![];
         let mut exports: Vec<ir::Export> = vec![];
@@ -49,7 +49,7 @@ impl WasmCompiler {
             .iter()
             .map(|i| {
                 let ItemKind::Function(function) = &i.kind;
-                function.name.clone()
+                function.name_span.in_src(&src).to_string()
             })
             .enumerate()
             .map(|(i, name)| (name, i as u8))
@@ -64,8 +64,15 @@ impl WasmCompiler {
             if function.attrs.import != ast::Import::None {
                 let (module_name, name) = match &function.attrs.import {
                     ast::Import::Explicit(namespace, name) => (namespace.clone(), name.clone()),
-                    ast::Import::Namespace(namespace) => (namespace.clone(), function.name.clone()),
-                    _ => (String::from("env"), function.name.clone()), // default namespace env
+                    ast::Import::Namespace(namespace) => (
+                        namespace.clone(),
+                        function.name_span.in_src(&src).to_string(),
+                    ),
+                    // default namespace env
+                    _ => (
+                        String::from("env"),
+                        function.name_span.in_src(&src).to_string(),
+                    ),
                 };
                 let import = Import {
                     module_name,
@@ -83,14 +90,15 @@ impl WasmCompiler {
 
         // process the rest of the functions
         for function in &non_imports {
-            if function.name == "start" {
+            let fn_name = function.name_span.in_src(&src);
+            if fn_name == "start" {
                 self.start = Some(fn_index);
             }
 
             if function.attrs.export != ast::Export::None {
                 let name = match &function.attrs.export {
                     ast::Export::Explicit(name) => name.clone(),
-                    _ => function.name.clone(),
+                    _ => fn_name.to_string(),
                 };
                 let export = Export {
                     name,

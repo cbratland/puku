@@ -37,7 +37,7 @@ impl Analyzer {
                         return Err(ParseError {
                             level: ErrorLevel::Error,
                             message: String::from("imported functions cannot have a body"),
-                            span: Some(block.span),
+                            span: Some(func.name_span),
                         });
                     }
                     self.check_block(block)?;
@@ -46,7 +46,7 @@ impl Analyzer {
                         return Err(ParseError {
                             level: ErrorLevel::Error,
                             message: String::from("function must have a body"),
-                            span: Some(item.span),
+                            span: Some(func.name_span),
                         });
                     }
                 }

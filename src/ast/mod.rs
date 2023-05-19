@@ -377,7 +377,7 @@ pub struct FunctionAttributes {
 #[derive(Debug, PartialEq)]
 pub struct Function {
     pub attrs: FunctionAttributes,
-    pub name: String, // todo: don't use String?
+    pub name_span: Span, // todo: don't use String?
     pub params: Vec<TypeAscription>,
     pub return_type: Option<Type>,
     pub block: Option<Block>,

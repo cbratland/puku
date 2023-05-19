@@ -29,7 +29,7 @@ fn empty_function() {
                         export: Export::None,
                         import: Import::None
                     },
-                    name: String::from("test"),
+                    name_span: Span { loc: 5, len: 4 },
                     return_type: None,
                     params: vec![],
                     block: Some(Block {
