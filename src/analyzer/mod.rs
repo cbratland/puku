@@ -100,7 +100,7 @@ impl Analyzer {
                 self.check_expr(&mut binop.right)?;
                 if binop.operator == BinaryOperator::Div {
                     if let ExpressionKind::Literal(lit) = &binop.right.kind {
-                        if *lit == LiteralKind::Integer(0) || *lit == LiteralKind::Float(0.0) {
+                        if **lit == LiteralKind::Integer(0) || **lit == LiteralKind::Float(0.0) {
                             return Err(ParseError {
                                 level: ErrorLevel::Error,
                                 message: String::from("division by zero"),

@@ -22,34 +22,41 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    // move to next character
     fn next(&mut self) -> Option<char> {
         self.chars.next()
     }
 
+    // return next character without consuming
     fn peek(&self) -> char {
         self.chars.clone().next().unwrap_or('\0')
     }
 
+    // check if at end of file
     fn is_eof(&self) -> bool {
         self.chars.as_str().is_empty()
     }
 
+    // update remaining char count
     fn update_len_remaining(&mut self) {
         let new_len = self.chars.as_str().len();
         self.loc += (self.len_remaining - new_len) as u32;
         self.len_remaining = new_len;
     }
 
+    // return number of characters since last update_len_remaining
     fn moved_len(&self) -> u32 {
         (self.len_remaining - self.chars.as_str().len()) as u32
     }
 
+    // eat characters while predicate is true
     fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
         while predicate(self.peek()) && !self.is_eof() {
             self.next();
         }
     }
 
+    // check if character is a whitespace
     fn is_whitespace(c: char) -> bool {
         matches!(
             c,
@@ -69,6 +76,7 @@ impl<'a> Lexer<'a> {
         )
     }
 
+    // lex the next token
     pub fn next_token(&mut self) -> (Token, /* preceeded by whitespace */ bool) {
         let mut preceeded_by_whitespace = false;
         loop {

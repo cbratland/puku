@@ -238,7 +238,7 @@ impl<'a> TypeChecker<'a> {
                 }
                 lhs_type
             }
-            ExpressionKind::Literal(lit) => match lit {
+            ExpressionKind::Literal(lit) => match &mut **lit {
                 LiteralKind::Integer(_) => Type::Basic(BasicType::Int32),
                 LiteralKind::Float(_) => Type::Basic(BasicType::Float32),
                 LiteralKind::Bool(_) => Type::Basic(BasicType::Bool),

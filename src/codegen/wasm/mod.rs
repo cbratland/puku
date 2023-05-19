@@ -482,7 +482,7 @@ impl WasmCompiler {
                     } as u8])
                     .unwrap();
             }
-            ExpressionKind::Literal(lit) => match lit {
+            ExpressionKind::Literal(lit) => match &**lit {
                 ast::LiteralKind::Integer(int) => {
                     buffer.write_all(&[Opcode::I32Const as u8]).unwrap();
                     leb128::write::signed(buffer, *int as i64).unwrap();

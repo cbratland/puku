@@ -86,6 +86,7 @@ impl Span {
         }
     }
 
+    // get the string in src that the span represents
     pub fn in_src<'a>(&self, src: &'a str) -> &'a str {
         let loc = self.loc as usize;
         &src[loc..loc + self.len as usize]
@@ -110,6 +111,7 @@ pub struct Statement {
 }
 
 impl Statement {
+    // let
     pub fn declaration(
         mutable: bool,
         ident: String,
@@ -128,6 +130,7 @@ impl Statement {
         }
     }
 
+    // return
     pub fn ret(expr: Option<Expression>, span: Span) -> Self {
         Self {
             kind: StatementKind::Return(expr.map(Box::new)),
@@ -135,6 +138,7 @@ impl Statement {
         }
     }
 
+    // break
     pub fn br(span: Span) -> Self {
         Self {
             kind: StatementKind::Break,
@@ -142,6 +146,7 @@ impl Statement {
         }
     }
 
+    // continue
     pub fn cont(span: Span) -> Self {
         Self {
             kind: StatementKind::Continue,
@@ -149,6 +154,7 @@ impl Statement {
         }
     }
 
+    // other expression
     pub fn expr(expr: Expression) -> Self {
         let span = expr.span;
         Self {
@@ -191,11 +197,11 @@ pub enum ExpressionKind {
     // unary op `-x`, `!x`, etc.
     UnaryOp(Box<UnaryOperation>),
     // block
-    Block(Block),
+    Block(Box<Block>),
     // literal
-    Literal(LiteralKind),
+    Literal(Box<LiteralKind>),
     // variable
-    Variable(Variable),
+    Variable(Box<Variable>),
     // TODO:
     // object/array
     // continue/break
@@ -213,6 +219,7 @@ pub struct Expression {
 }
 
 impl Expression {
+    // binary operation
     pub fn binop(left: Expression, right: Expression, operator: BinaryOperator) -> Self {
         let span = left.span.to(&right.span);
         Self {
@@ -226,6 +233,7 @@ impl Expression {
         }
     }
 
+    // unary operation
     pub fn uop(expr: Expression, operator: UnaryOperator) -> Self {
         let span = Span {
             loc: expr.span.loc - 1,
@@ -241,17 +249,19 @@ impl Expression {
         }
     }
 
+    // variable
     pub fn var(name: String, span: Span) -> Self {
         Self {
-            kind: ExpressionKind::Variable(Variable {
+            kind: ExpressionKind::Variable(Box::new(Variable {
                 name,
                 r#type: None,
                 span,
-            }),
+            })),
             span,
         }
     }
 
+    // function call
     pub fn call(callee: Expression, args: Vec<Expression>, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Call(Box::new(callee), args),
@@ -259,6 +269,7 @@ impl Expression {
         }
     }
 
+    // array index
     pub fn index(expr: Expression, index: Expression, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Index(Box::new(expr), Box::new(index)),
@@ -266,6 +277,7 @@ impl Expression {
         }
     }
 
+    // assignment
     pub fn assign(lhs: AssignmentVariable, rhs: Expression, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Assign(Box::new(lhs), Box::new(rhs)),
@@ -273,13 +285,15 @@ impl Expression {
         }
     }
 
+    // literal
     pub fn literal(kind: LiteralKind, span: Span) -> Self {
         Self {
-            kind: ExpressionKind::Literal(kind),
+            kind: ExpressionKind::Literal(Box::new(kind)),
             span,
         }
     }
 
+    // expression group
     pub fn group(expr: Expression, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Group(Box::new(expr)),
@@ -287,6 +301,7 @@ impl Expression {
         }
     }
 
+    // if
     pub fn if_expr(
         cond: Expression,
         then_branch: Block,
@@ -304,6 +319,7 @@ impl Expression {
         }
     }
 
+    // while
     pub fn while_expr(cond: Expression, block: Block, span: Span) -> Self {
         Self {
             kind: ExpressionKind::While(Box::new(cond), Box::new(Self::block(block))),
@@ -311,6 +327,7 @@ impl Expression {
         }
     }
 
+    // loop
     pub fn loop_expr(block: Block, span: Span) -> Self {
         Self {
             kind: ExpressionKind::Loop(Box::new(Self::block(block))),
@@ -318,10 +335,11 @@ impl Expression {
         }
     }
 
+    // block
     pub fn block(block: Block) -> Self {
         let span = block.span;
         Self {
-            kind: ExpressionKind::Block(block),
+            kind: ExpressionKind::Block(Box::new(block)),
             span,
         }
     }
@@ -339,7 +357,7 @@ pub struct TypeAscription {
 pub enum Export {
     None,
     Implicit,         // export
-    Explicit(String), // export("whatever")
+    Explicit(String), // export("func_name")
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -347,7 +365,7 @@ pub enum Import {
     None,
     Implicit,                 // import
     Namespace(String),        // import("namespace")
-    Explicit(String, String), // import("namespace", "whatever")
+    Explicit(String, String), // import("namespace", "func_name")
 }
 
 #[derive(Debug, PartialEq, Eq)]

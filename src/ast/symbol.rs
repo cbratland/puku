@@ -8,6 +8,7 @@ pub struct TypeSymbol {
 }
 
 impl TypeSymbol {
+    // variable with type
     pub fn var(name: String, typ: Type) -> Self {
         TypeSymbol {
             name: Some(name),
@@ -15,6 +16,7 @@ impl TypeSymbol {
         }
     }
 
+    // just type
     pub fn typ(typ: Type) -> Self {
         TypeSymbol {
             name: None,
@@ -22,6 +24,7 @@ impl TypeSymbol {
         }
     }
 
+    // function with type
     pub fn func(name: String, typ: Type) -> Self {
         Self::var(name, typ)
     }

@@ -417,7 +417,7 @@ impl<'a> Parser<'a> {
                     let name = var.name.clone();
                     let var_span = var.span;
                     Ok(Expression::assign(
-                        AssignmentVariable::Variable(var),
+                        AssignmentVariable::Variable(*var),
                         Expression::binop(Expression::var(name, var_span), right, operator),
                         span,
                     ))
@@ -524,7 +524,7 @@ impl<'a> Parser<'a> {
             } else {
                 let span = variable.span;
                 let expr = Expression {
-                    kind: ExpressionKind::Variable(variable),
+                    kind: ExpressionKind::Variable(Box::new(variable)),
                     span,
                 };
                 if self.eat(&TokenKind::OpenDelimiter(Delimiter::Parenthesis)) {
